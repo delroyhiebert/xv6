@@ -7,8 +7,7 @@
 #include "x86.h"
 #include "elf.h"
 
-int
-exec(char *path, char **argv)
+int exec(char *path, char **argv)
 {
   char *s, *last;
   int i, off;
@@ -18,12 +17,40 @@ exec(char *path, char **argv)
   struct proghdr ph;
   pde_t *pgdir, *oldpgdir;
 
+  char path_plus_exec[DIRECTORY_BUFFER];//Make our path var as large as possible
+  int length;
+  int foundExecutable = 0;
+
   begin_op();
 
   if((ip = namei(path)) == 0){
-    end_op();
-    return -1;
+    //Instead of returning nothing, we will loop through all our paths and check for executables there
+    int j;
+    for( j = 0; j < PATH.num_directories; j++ )
+    {//We need to combine our path (executable) with strings from PATH
+      length = strlen(PATH.directories[j]);
+      safestrcpy(path_plus_exec, PATH.directories[j], DIRECTORY_BUFFER);
+      safestrcpy(path_plus_exec + length, path, DIRECTORY_BUFFER - 1);//Stick executable after path dir
+
+      ip = namei(path_plus_exec);
+
+      if( ip != 0 )
+      {
+        path = path_plus_exec;
+        foundExecutable = 1;
+        break;
+      }
+
+    }
+    if( foundExecutable == 0 )
+    {//We didn't find the path to the executable
+      return -1;
+    }
+    //printf(1, "Found executable at path: %s\n", path);
+    //Can't print at this level in kernel
   }
+  
+
   ilock(ip);
   pgdir = 0;
 

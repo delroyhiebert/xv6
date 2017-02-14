@@ -7,11 +7,42 @@
 #include "x86.h"
 #include "syscall.h"
 
+
+
+
 // User code makes a system call with INT T_SYSCALL.
 // System call number in %eax.
 // Arguments on the stack, from the user call to the C
 // library system call function. The saved user %esp points
 // to a saved program counter, and then the first argument.
+
+//Write a directory path into our array of paths for our global PATH
+int sys_add_dir(void)
+{
+  char *path;
+  int l;
+
+  // Initialize function argument
+  if(argstr(0, &path) < 0)
+    return -1;
+
+  // Check to make sure that there is still room in PATH
+  if(PATH.num_directories == NUM_OF_DIRECTORIES_IN_PATH)
+    return -1;
+
+  safestrcpy(PATH.directories[PATH.num_directories], path, DIRECTORY_BUFFER);
+
+  // Append trailing '/' character if necessary
+  l = strlen(path);
+  if(path[l-1] != '/' && l < DIRECTORY_BUFFER - 1) {
+    PATH.directories[PATH.num_directories][l] = '/';
+    PATH.directories[PATH.num_directories][l+1] = '\0';
+  }
+
+  PATH.num_directories++;
+
+  return 0;
+}
 
 // Fetch the int at addr from the current process.
 int
@@ -98,6 +129,7 @@ extern int sys_unlink(void);
 extern int sys_wait(void);
 extern int sys_write(void);
 extern int sys_uptime(void);
+extern int sys_add_dir(void);
 
 static int (*syscalls[])(void) = {
 [SYS_fork]    sys_fork,
@@ -121,6 +153,7 @@ static int (*syscalls[])(void) = {
 [SYS_link]    sys_link,
 [SYS_mkdir]   sys_mkdir,
 [SYS_close]   sys_close,
+[SYS_add_dir] sys_add_dir,
 };
 
 void

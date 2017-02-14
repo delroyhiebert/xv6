@@ -145,6 +145,14 @@ int             strncmp(const char*, const char*, uint);
 char*           strncpy(char*, const char*, int);
 
 // syscall.c
+#define DIRECTORY_BUFFER 128
+#define NUM_OF_DIRECTORIES_IN_PATH 10
+
+struct {
+  char directories[NUM_OF_DIRECTORIES_IN_PATH][DIRECTORY_BUFFER];
+  int num_directories;
+} PATH;
+
 int             argint(int, int*);
 int             argptr(int, char**, int);
 int             argstr(int, char**);
@@ -184,3 +192,4 @@ void            clearpteu(pde_t *pgdir, char *uva);
 
 // number of elements in fixed-size array
 #define NELEM(x) (sizeof(x)/sizeof((x)[0]))
+
