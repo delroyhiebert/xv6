@@ -15,6 +15,8 @@
 #include "proc.h"
 #include "x86.h"
 
+#include "console.h"
+
 static void consputc(int);
 
 static int panicked = 0;
@@ -177,6 +179,23 @@ consputc(int c)
   cgaputc(c);
 }
 
+static void move_cursor( int indexMovement )
+{
+  int pos;
+  // Cursor position: col + 80*row.
+  //Copied from functions above...
+  outb(CRTPORT, 14);
+  pos = inb(CRTPORT+1) << 8;
+  outb(CRTPORT, 15);
+  pos |= inb(CRTPORT+1);
+  pos = pos + indexMovement;//Move our position based on given distance. indexMovement can be pos or neg.
+  //Copied from cgaputc, move our cursor on the screen
+  outb(CRTPORT, 14);
+  outb(CRTPORT+1, pos >> 8 );
+  outb(CRTPORT, 15);
+  outb(CRTPORT+1, pos);
+}
+
 #define INPUT_BUF 128
 struct {
   char buf[INPUT_BUF];
@@ -200,6 +219,8 @@ consoleintr(int (*getc)(void))
       doprocdump = 1;
       break;
     case C('U'):  // Kill line.
+      move_cursor(movement);//Move our cursor, reset the distance value
+      movement = 0;
       while(input.e != input.w &&
             input.buf[(input.e-1) % INPUT_BUF] != '\n'){
         input.e--;
@@ -207,16 +228,68 @@ consoleintr(int (*getc)(void))
       }
       break;
     case C('H'): case '\x7f':  // Backspace
-      if(input.e != input.w){
-        input.e--;
+      if(input.e - movement != input.w){
+
+        int j, index;
+        for( j = 0; j < movement; j++ )
+        {
+          index = input.e + j - movement;
+          input.buf[(index-1) % INPUT_BUF] = input.buf[index % INPUT_BUF];
+        }
+
+        move_cursor(movement);
         consputc(BACKSPACE);
+        move_cursor(-movement);
+        input.e--;
+        for( j = 0; j < movement; j++ )
+        {
+          index = input.e - movement + j;
+          c = input.buf[index % INPUT_BUF];
+          consputc(c);
+        }
+        move_cursor(-movement);
+      }
+      break;
+    case rightArrow:
+      if( movement > 0 )
+      {
+        move_cursor(1);
+        movement--;
+      }
+      break;
+    case leftArrow:
+      if( movement < input.e - input.w )
+      {
+        move_cursor(-1);
+        movement++;
+
+        uartputc('\b');
       }
       break;
     default:
       if(c != 0 && input.e-input.r < INPUT_BUF){
         c = (c == '\r') ? '\n' : c;
-        input.buf[input.e++ % INPUT_BUF] = c;
+        if( c == '\n' || c == C('D') || input.e == input.r + INPUT_BUF)
+        {
+          move_cursor(movement);
+          movement = 0;
+        }
+        int j,index;
+        for( j = 0; j < movement; j++ )
+        {
+          index = input.e - j;
+          input.buf[index % INPUT_BUF] = input.buf[(index - 1) % INPUT_BUF];
+        }
+        input.buf[(input.e-movement) % INPUT_BUF] = c;
+        input.e++;
         consputc(c);
+
+        for( j = 0; j < movement; j++ )
+        {
+          index = input.e - movement + j;
+          consputc(input.buf[index % INPUT_BUF]);
+        }
+        move_cursor(-movement);
         if(c == '\n' || c == C('D') || input.e == input.r+INPUT_BUF){
           input.w = input.e;
           wakeup(&input.r);
