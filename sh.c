@@ -13,6 +13,8 @@
 
 #define MAXARGS 10
 
+void printCurrentHistory(void);
+
 struct cmd {
   int type;
 };
@@ -164,11 +166,30 @@ main(void)
         printf(2, "cannot cd %s\n", buf+3);
       continue;
     }
+    if(buf[0] == 'h' && buf[1] == 'i' && buf[2] == 's' && buf[3] == 't'
+        && buf[4] == 'o' && buf[5] == 'r' && buf[6] == 'y') {
+      printCurrentHistory();
+      continue;
+    }
     if(fork1() == 0)
       runcmd(parsecmd(buf));
     wait();
   }
   exit();
+}
+
+char buffer[128];
+int numCommands = 16;
+void printCurrentHistory(void)
+{
+  int i;
+  for( i = 0; i < numCommands; i++ )
+  {
+    if( history(buffer, numCommands-i-1) == 0 && strcmp(buffer, "") != 0 )
+    {
+      printf(1, "%d: %s\n", i, buffer); 
+    }
+  }
 }
 
 void

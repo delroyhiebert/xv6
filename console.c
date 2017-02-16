@@ -250,6 +250,30 @@ consoleintr(int (*getc)(void))
         move_cursor(-movement);
       }
       break;
+    case upArrow:
+      move_cursor(movement);
+      movement = 0;
+      while( input.e != input.w && input.buf[(input.e - 1) % INPUT_BUF] != '\n')
+      {
+        input.e--;
+        consputc(BACKSPACE);
+      }
+      history_index--;
+      if( history_index < 0 )
+        history_index += 16;
+
+      history_index = history_index % 16;
+      int j = 0;
+      while(history_buffer[history_index][j] != '\0')
+      {
+        input.buf[input.e % INPUT_BUF] = history_buffer[history_index][j];
+        input.e++;
+        consputc(history_buffer[history_index][j]);
+        j++;
+      }
+      break;
+    case downArrow:
+      break;
     case rightArrow:
       if( movement > 0 )
       {
@@ -271,6 +295,17 @@ consoleintr(int (*getc)(void))
         c = (c == '\r') ? '\n' : c;
         if( c == '\n' || c == C('D') || input.e == input.r + INPUT_BUF)
         {
+          if( input.e != input.w )
+          {
+            int j;
+            for(j = 0; j < ( input.e + INPUT_BUF - input.w) % INPUT_BUF; ++j )
+            {
+              history_buffer[nextIndex][j] = input.buf[ (input.w + j) % INPUT_BUF];
+            }
+            history_buffer[nextIndex][j+1] = '\0';
+            nextIndex++; 
+          }
+          history_index = nextIndex;
           move_cursor(movement);
           movement = 0;
         }
@@ -340,6 +375,17 @@ consoleread(struct inode *ip, char *dst, int n)
   ilock(ip);
 
   return target - n;
+}
+
+int history( char * buffer, int historyId)
+{
+  if( historyId < 0 || historyId > 15 )
+    return -2;
+  //if( historyId >= )
+  memset(buffer, '\0', INPUT_BUF);
+  int temp = (history_index - 1 + historyId) % 16;
+  memmove( buffer, history_buffer[temp], strlen(history_buffer[temp]));
+  return 0;
 }
 
 int
