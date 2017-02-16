@@ -273,6 +273,26 @@ consoleintr(int (*getc)(void))
       }
       break;
     case downArrow:
+      if( history_index != nextIndex )
+      {
+        move_cursor( movement );
+        movement = 0;
+        while( input.e != input.w && input.buf[(input.e-1)%INPUT_BUF] != '\n')
+        {
+          input.e--;
+          consputc(BACKSPACE);
+        }
+        history_index++;
+        history_index = history_index % 16;
+        int j = 0;
+        while( history_buffer[history_index][j] != '\0')
+        {
+          input.buf[input.e % INPUT_BUF] = history_buffer[history_index][j];
+          input.e++;
+          consputc(history_buffer[history_index][j]);
+          j++;
+        }
+      }
       break;
     case rightArrow:
       if( movement > 0 )
