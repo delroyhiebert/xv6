@@ -258,38 +258,38 @@ consoleintr(int (*getc)(void))
         input.e--;
         consputc(BACKSPACE);
       }
-      history_index--;
-      if( history_index < 0 )
-        history_index += 16;
+      current_index--;
+      if( current_index < 0 )
+        current_index += 16;
 
-      history_index = history_index % 16;
+      current_index = current_index % 16;
       int j = 0;
-      while(history_buffer[history_index][j] != '\0')
+      while(history_buffer[current_index][j] != '\0')
       {
-        input.buf[input.e % INPUT_BUF] = history_buffer[history_index][j];
+        input.buf[input.e % INPUT_BUF] = history_buffer[current_index][j];
         input.e++;
-        consputc(history_buffer[history_index][j]);
+        consputc(history_buffer[current_index][j]);
         j++;
       }
       break;
     case downArrow:
-      if( history_index != nextIndex )
+      if( current_index != next_index )
       {
         move_cursor( movement );
         movement = 0;
-        while( input.e != input.w && input.buf[(input.e-1)%INPUT_BUF] != '\n')
+        while( input.e != input.w && input.buf[(input.e - 1) % INPUT_BUF] != '\n')
         {
           input.e--;
           consputc(BACKSPACE);
         }
-        history_index++;
-        history_index = history_index % 16;
+        current_index++;
+        current_index = current_index % 16;
         int j = 0;
-        while( history_buffer[history_index][j] != '\0')
+        while( history_buffer[current_index][j] != '\0')
         {
-          input.buf[input.e % INPUT_BUF] = history_buffer[history_index][j];
+          input.buf[input.e % INPUT_BUF] = history_buffer[current_index][j];
           input.e++;
-          consputc(history_buffer[history_index][j]);
+          consputc(history_buffer[current_index][j]);
           j++;
         }
       }
@@ -315,21 +315,22 @@ consoleintr(int (*getc)(void))
         c = (c == '\r') ? '\n' : c;
         if( c == '\n' || c == C('D') || input.e == input.r + INPUT_BUF)
         {
+          int j;
           if( input.e != input.w )
           {
-            int j;
+            
             for(j = 0; j < ( input.e + INPUT_BUF - input.w) % INPUT_BUF; ++j )
             {
-              history_buffer[nextIndex][j] = input.buf[ (input.w + j) % INPUT_BUF];
+              history_buffer[next_index][j] = input.buf[ (input.w + j) % INPUT_BUF];
             }
-            history_buffer[nextIndex][j+1] = '\0';
-            nextIndex++; 
+            history_buffer[next_index][j+1] = '\0';
+            next_index++; 
           }
-          history_index = nextIndex;
+          current_index = next_index;
           move_cursor(movement);
           movement = 0;
         }
-        int j,index;
+        int index;
         for( j = 0; j < movement; j++ )
         {
           index = input.e - j;
@@ -403,7 +404,7 @@ int history( char * buffer, int historyId)
     return -2;
   //if( historyId >= )
   memset(buffer, '\0', INPUT_BUF);
-  int temp = (history_index - 1 + historyId) % 16;
+  int temp = (current_index - 1 + historyId) % 16;
   memmove( buffer, history_buffer[temp], strlen(history_buffer[temp]));
   return 0;
 }

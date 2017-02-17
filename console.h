@@ -10,8 +10,8 @@ For Dr. Rasit Eskicioglu
 static int movement;//Cursor movement
 
 char history_buffer[16][128];
-int history_index = 0;
-int nextIndex = 0;
+int current_index = 0;
+int next_index = 0;
 
 int history(char *buffer, int historyId);
 
