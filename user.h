@@ -25,7 +25,6 @@ int sleep(int);
 int uptime(void);
 int add_dir( char * );
 
-int command_history(void);
 int add_directory(char *);
 int history(char * buffer, int historyId);
 

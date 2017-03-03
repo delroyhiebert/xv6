@@ -11,7 +11,6 @@ struct stat;
 struct superblock;
 
 int add_directory(char *);
-int command_history(void);
 int history(char *, int );
 
 // bio.c

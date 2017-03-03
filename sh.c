@@ -183,15 +183,11 @@ int numCommands = 16;
 void printCurrentHistory(void)
 {
   int i;
-  for( i = 15; i >= 0; i-- )
+  for( i = 0; i < numCommands; i++ )
   {
-    if( history(buffer, numCommands -(1 + i)) == 0 && strcmp(buffer, "") != 0 )
+    if( history(buffer, numCommands-i-1) == 0 && strcmp(buffer, "") != 0 )
     {
-      printf(1, "%d: %s\n", i, buffer); 
-    }
-    else
-    {
-      break;
+      printf(1, "cmd %d: %s\n", i, buffer); 
     }
   }
 }

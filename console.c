@@ -260,9 +260,9 @@ consoleintr(int (*getc)(void))
       }
       current_index--;
       if( current_index < 0 )
-        current_index += 16;
+        current_index += MAX_HISTORY;
 
-      current_index = current_index % 16;
+      current_index = current_index % MAX_HISTORY;
       int j = 0;
       while(history_buffer[current_index][j] != '\0')
       {
@@ -283,7 +283,7 @@ consoleintr(int (*getc)(void))
           consputc(BACKSPACE);
         }
         current_index++;
-        current_index = current_index % 16;
+        current_index = current_index % MAX_HISTORY;
         int j = 0;
         while( history_buffer[current_index][j] != '\0')
         {
@@ -325,10 +325,12 @@ consoleintr(int (*getc)(void))
             }
             history_buffer[next_index][j+1] = '\0';
             next_index++; 
+            if( command_count < MAX_HISTORY )
+              command_count++;
           }
-          current_index = next_index;
           move_cursor(movement);
           movement = 0;
+          current_index = next_index;
         }
         int index;
         for( j = 0; j < movement; j++ )
@@ -402,9 +404,10 @@ int history( char * buffer, int historyId)
 {
   if( historyId < 0 || historyId > 15 )
     return -2;
-  //if( historyId >= )
+  if( MAX_HISTORY-historyId > command_count)
+    return -1;
   memset(buffer, '\0', INPUT_BUF);
-  int temp = (current_index - 1 + historyId) % 16;
+  int temp = (current_index - 1 + historyId) % MAX_HISTORY;
   memmove( buffer, history_buffer[temp], strlen(history_buffer[temp]));
   return 0;
 }
