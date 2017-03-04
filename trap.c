@@ -77,6 +77,15 @@ trap(struct trapframe *tf)
             cpunum(), tf->cs, tf->eip);
     lapiceoi();
     break;
+  case T_DIVIDE:
+    cprintf("Divide by zero triggered trap.\n");
+    signalProc();
+    break;
+  case T_PGFLT:
+    cprintf("Segmentation fault triggered trap.\n");
+    signalProc();
+    break;
+
 
   //PAGEBREAK: 13
   default:

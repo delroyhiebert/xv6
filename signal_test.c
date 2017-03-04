@@ -1,0 +1,43 @@
+#include "signals.h"
+#include "types.h"
+#include "user.h"
+
+void FPEHandler(void);
+void SEGVHandler(void);
+
+int main(void)
+{
+	printf(1, "Begin signals test...\n\n");
+	
+	printf(1, "Registering SIGFPE handler.\n");
+	if( signal(SIGFPE, &FPEHandler) == -1 )
+		printf(1, "Failed to set signal handler for FPE signal.\n");
+	volatile int aa = 5;
+	volatile int bb = 0;
+	aa = aa/bb;
+
+	printf(1, "Handler for SIGFPE returned to main\n\n");
+
+	printf(1, "Registering SIGSEGV handler.\n");
+	if( signal(SIGFPE, &SEGVHandler) == -1 )
+		printf(1, "Failed to set signal handler for SEGV signal.\n");
+
+	printf(1, "%d\n", *(int*)10000000000);
+
+	printf(1, "Handler for SIGSEGV returned to main, error, should not occur!.\n");
+
+	exit();
+}
+
+void FPEHandler(void)
+{
+	printf(1, "Signal handler for SIGFPE...\n");
+}
+
+void SEGVHandler(void)
+{
+	printf(1, "Signal handler for SIGSEGV...\n");
+	printf(1, "Killing the process, returning to shell.\n");
+	exit();
+}
+

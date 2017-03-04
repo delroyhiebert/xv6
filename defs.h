@@ -10,6 +10,8 @@ struct sleeplock;
 struct stat;
 struct superblock;
 
+
+
 // bio.c
 void            binit(void);
 struct buf*     bread(uint, uint);
@@ -116,6 +118,9 @@ void            userinit(void);
 int             wait(void);
 void            wakeup(void*);
 void            yield(void);
+
+typedef void (*sighandler_t)(void);
+int 			signal( int signum, sighandler_t handler );
 
 // swtch.S
 void            swtch(struct context**, struct context*);
