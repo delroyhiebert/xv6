@@ -28,9 +28,13 @@ pinit(void)
 }
 
 /********************************************************/
-//Written by Delroy Hiebert
+/*
+Written by Delroy Hiebert
+Comp 4430 Operating Systems 2
+For Dr. Rasit Eskicioglu
+*/
 int validSig( int signum )
-{
+{//Make sure we aren't trying to set a signal handler for invalid signals.
   if( signum < SIGFPE || signum > SIGSEGV )
     return -1;
   return 0;

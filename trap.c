@@ -77,6 +77,11 @@ trap(struct trapframe *tf)
             cpunum(), tf->cs, tf->eip);
     lapiceoi();
     break;
+  /*
+  Written by Delroy Hiebert
+  Comp 4430 Operating Systems 2
+  For Dr. Rasit Eskicioglu
+  */
   case T_DIVIDE:
     cprintf("Divide by zero triggered trap.\n");
     signalFPE();
