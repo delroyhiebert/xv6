@@ -79,11 +79,11 @@ trap(struct trapframe *tf)
     break;
   case T_DIVIDE:
     cprintf("Divide by zero triggered trap.\n");
-    signalProc();
+    signalFPE();
     break;
   case T_PGFLT:
     cprintf("Segmentation fault triggered trap.\n");
-    signalProc();
+    signalSEG();
     break;
 
 

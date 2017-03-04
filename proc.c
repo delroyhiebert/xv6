@@ -31,7 +31,7 @@ pinit(void)
 //Written by Delroy Hiebert
 int validSig( int signum )
 {
-  if( signum < SIGFPE || signum > SIGKILL )
+  if( signum < SIGFPE || signum > SIGSEGV )
     return -1;
   return 0;
 }
@@ -50,13 +50,22 @@ int signal( int signum, sighandler_t handler )
   return previousVal;
 }
 
-void signalProc(void)
+void signalFPE(void)
 {
     //Save our stack pointer, move forward one line to avoid
     //retripping fault (we want to continue)
     *((uint*)(proc->tf->esp - 4))  = (uint)proc->tf->eip + 1;
     proc->tf->esp -= 4;
     proc->tf->eip = (uint)proc->handlers[SIGFPE];
+}
+
+void signalSEG(void)
+{
+    //Save our stack pointer, move forward one line to avoid
+    //retripping fault (we want to continue)
+    *((uint*)(proc->tf->esp - 4))  = (uint)proc->tf->eip;
+    proc->tf->esp -= 4;
+    proc->tf->eip = (uint)proc->handlers[SIGSEGV];
 }
 
 /*********************************************************/
@@ -101,8 +110,8 @@ found:
   p->tf = (struct trapframe*)sp;
 
   //Set signal handlers to kill
-  p->handlers[SIGFPE]   = (sighandler_t)-1;
-  p->handlers[SIGSEGV]  = (sighandler_t)-1;
+  p->handlers[SIGFPE]   = (sighandler_t)SIGKILL;
+  p->handlers[SIGSEGV]  = (sighandler_t)SIGKILL;
 
   // Set up new context to start executing at forkret,
   // which returns to trapret.

@@ -1,6 +1,7 @@
 #include "signals.h"
 
-void signalProc(void);
+void signalFPE(void);
+void signalSEG(void);
 
 // Per-CPU state
 struct cpu {
