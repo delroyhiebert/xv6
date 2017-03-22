@@ -16,15 +16,16 @@
 #endif
 
 #define NINODES 200
+#define CUSTOMSIZE 21029
 
 // Disk layout:
 // [ boot block | sb block | log | inode blocks | free bit map | data blocks ]
 
-int nbitmap = FSSIZE/(BSIZE*8) + 1;
+int nbitmap = CUSTOMSIZE/(BSIZE*8) + 1;
 int ninodeblocks = NINODES / IPB + 1;
 int nlog = LOGSIZE;
 int nmeta;    // Number of meta blocks (boot, sb, nlog, inode, bitmap)
-int nblocks;  // Number of data blocks
+int nblocks = 20985;  // Number of data blocks
 
 int fsfd;
 struct superblock sb;
@@ -92,9 +93,9 @@ main(int argc, char *argv[])
 
   // 1 fs block = 1 disk sector
   nmeta = 2 + nlog + ninodeblocks + nbitmap;
-  nblocks = FSSIZE - nmeta;
+  //nblocks = CUSTOMSIZE - nmeta;
 
-  sb.size = xint(FSSIZE);
+  sb.size = xint(CUSTOMSIZE);
   sb.nblocks = xint(nblocks);
   sb.ninodes = xint(NINODES);
   sb.nlog = xint(nlog);
@@ -103,11 +104,11 @@ main(int argc, char *argv[])
   sb.bmapstart = xint(2+nlog+ninodeblocks);
 
   printf("nmeta %d (boot, super, log blocks %u inode blocks %u, bitmap blocks %u) blocks %d total %d\n",
-         nmeta, nlog, ninodeblocks, nbitmap, nblocks, FSSIZE);
+         nmeta, nlog, ninodeblocks, nbitmap, nblocks, CUSTOMSIZE);
 
   freeblock = nmeta;     // the first free block that we can allocate
 
-  for(i = 0; i < FSSIZE; i++)
+  for(i = 0; i < CUSTOMSIZE; i++)
     wsect(i, zeroes);
 
   memset(buf, 0, sizeof(buf));
