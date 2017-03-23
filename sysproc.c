@@ -7,6 +7,11 @@
 #include "mmu.h"
 #include "proc.h"
 
+int sys_wait2(void)
+{
+  return 0;//stub function
+}
+
 int
 sys_fork(void)
 {
