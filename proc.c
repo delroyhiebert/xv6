@@ -295,6 +295,7 @@ scheduler(void)
 
     // Loop over process table looking for process to run.
     acquire(&ptable.lock);
+#ifdef DEFAULT
     for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
       if(p->state != RUNNABLE)
         continue;
@@ -312,6 +313,7 @@ scheduler(void)
       // It should have changed its p->state before coming back.
       proc = 0;
     }
+#endif
     release(&ptable.lock);
 
   }
