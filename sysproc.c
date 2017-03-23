@@ -14,7 +14,7 @@ int sys_wait2(void)
     || argptr(1, (void*)&rutime, sizeof(retime)) < 0 
     || argptr(2, (void*)&stime,  sizeof(stime )) < 0)
     return -1;
-  return 0;//stub function
+  return wait2(retime, rutime, stime);//stubbed function for now
 }
 
 int
