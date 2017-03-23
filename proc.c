@@ -26,6 +26,13 @@ pinit(void)
   initlock(&ptable.lock, "ptable");
 }
 
+
+int wait2(int* retime, int* rutime, int* stime)
+{
+  //Stub function
+  return 0;
+}
+
 //PAGEBREAK: 32
 // Look in the process table for an UNUSED proc.
 // If found, change state to EMBRYO and initialize

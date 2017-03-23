@@ -9,6 +9,11 @@
 
 int sys_wait2(void)
 {
+  int* retime, *rutime, *stime;
+  if ( argptr(0, (void*)&retime, sizeof(retime)) < 0 
+    || argptr(1, (void*)&rutime, sizeof(retime)) < 0 
+    || argptr(2, (void*)&stime,  sizeof(stime )) < 0)
+    return -1;
   return 0;//stub function
 }
 
