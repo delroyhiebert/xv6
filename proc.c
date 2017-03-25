@@ -29,8 +29,57 @@ pinit(void)
 
 int wait2(int* retime, int* rutime, int* stime)
 {
-  //Stub function
-  return 0;
+  struct proc* curr_proc;
+  bool children_remaining = false;
+  //int pid = 0;
+
+  acquire( &ptable.lock );
+  while( true )
+  {
+    for( curr_proc = ptable.proc; curr_proc < &ptable.proc[NPROC]; curr_proc++ )
+    {
+      if( curr_proc->parent != proc )
+        continue;
+      children_remaining = true;
+      if( curr_proc-> state == ZOMBIE )
+      {
+        curr_proc->state = UNUSED;
+        release(&ptable.lock);
+        return 1;
+      }
+    }
+
+    if( !children_remaining || proc->killed )
+    {
+      release(&ptable.lock);
+      return -1;
+    }
+    sleep( proc, &ptable.lock );
+  }
+}
+
+//Used in trap.c but placed here cause we need access to ptable.
+void increment_ticks()
+{
+  struct proc* curr_proc;
+  acquire(&ptable.lock);
+  //Loop logic copied from below allocproc()
+  for(curr_proc = ptable.proc; curr_proc < &ptable.proc[NPROC]; curr_proc++){
+    switch(curr_proc->state) {
+      case SLEEPING:
+        curr_proc->stime++;
+        break;
+      case RUNNABLE:
+        curr_proc->retime++;
+        break;
+      case RUNNING:
+        curr_proc->rutime++;
+        break;
+      default:
+        break;
+    }
+  }
+  release(&ptable.lock);
 }
 
 //PAGEBREAK: 32

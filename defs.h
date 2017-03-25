@@ -10,6 +10,10 @@ struct sleeplock;
 struct stat;
 struct superblock;
 
+typedef int bool;
+#define true 1
+#define false 0
+
 // bio.c
 void            binit(void);
 struct buf*     bread(uint, uint);
