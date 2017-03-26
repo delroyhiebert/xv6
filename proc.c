@@ -72,6 +72,7 @@ void clear_process( struct proc* p )
   p->pid = 0;
   p->parent = 0;
   p->killed = 0;
+  p->ctime = 0;
 }
 
 //Used in trap.c but placed here cause we need access to ptable.
@@ -378,6 +379,41 @@ scheduler(void)
       // It should have changed its p->state before coming back.
       proc = 0;
     }
+#endif
+#ifdef FCFS
+        struct proc * first_proc = 0;
+        for( p = ptable.proc; p < &ptable.proc[NPROC]; p++ )
+        {
+          if( p->state == RUNNABLE )
+          {
+            if ( first_proc == 0 )
+            {
+              first_proc = p;
+            }
+            else
+            {
+              if( p->ctime < first_proc->ctime )
+              {
+                first_proc = p;
+              }
+            }
+          }
+        }
+        if ( first_proc != 0 )
+        {
+          p = first_proc;
+          // Switch to chosen process.  It is the process's job
+          // to release ptable.lock and then reacquire it
+          // before jumping back to us.
+          proc = p;
+          switchuvm(p);
+          p->state = RUNNING;
+          swtch(&cpu->scheduler, proc->context);
+          switchkvm();
+          // Process is done running for now.
+          // It should have changed its p->state before coming back.
+           proc = 0;
+       }
 #endif
     release(&ptable.lock);
 

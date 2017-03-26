@@ -46,7 +46,7 @@ int main(int argc, char* argv[])
 						{
 							asm("nop");
 						}
-						//yield();
+						yield();
 					}
 					break;
 				case 2:
@@ -90,16 +90,16 @@ int main(int argc, char* argv[])
 Average Ready Time:     %d\n\
 Average Running time:   %d\n\
 Average Sleep Time:     %d\n\
-Average Total Run Time: %d\n", cpu_retime, cpu_rutime, cpu_stime, (cpu_retime+cpu_rutime+cpu_stime)/n);
+Average Per Proc Time:  %d\n", cpu_retime, cpu_rutime, cpu_stime, (cpu_retime+cpu_rutime+cpu_stime)/n);
 	printf(1,  "Short process summary:\n\
 Average Ready Time:     %d\n\
 Average Running time:   %d\n\
 Average Sleep Time:     %d\n\
-Average Total Run Time: %d\n", short_retime, short_rutime, short_stime, (short_retime+short_rutime+short_stime)/n);
+Average Per Proc Time:  %d\n", short_retime, short_rutime, short_stime, (short_retime+short_rutime+short_stime)/n);
 	printf(1,  "I/O process summary:\n\
 Average Ready Time:     %d\n\
 Average Running time:   %d\n\
 Average Sleep Time:     %d\n\
-Average Total Run Time: %d\n", IO_retime, IO_rutime, IO_stime, (IO_retime+IO_rutime+IO_stime)/n);
+Average Per Proc Time:  %d\n", IO_retime, IO_rutime, IO_stime, (IO_retime+IO_rutime+IO_stime)/n);
 	exit();
 }

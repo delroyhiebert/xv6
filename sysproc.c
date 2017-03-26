@@ -17,6 +17,12 @@ int sys_wait2(void)
   return wait2(retime, rutime, stime);//stubbed function for now
 }
 
+int sys_yield()
+{
+  yield();
+  return 0;
+}
+
 int
 sys_fork(void)
 {
