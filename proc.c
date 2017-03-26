@@ -31,11 +31,12 @@ int wait2(int* retime, int* rutime, int* stime)
 {
   struct proc* curr_proc;
   bool children_remaining = false;
-  //int pid = 0;
+  int pid = 0;
 
   acquire( &ptable.lock );
   while( true )
   {
+    children_remaining = false;
     for( curr_proc = ptable.proc; curr_proc < &ptable.proc[NPROC]; curr_proc++ )
     {
       if( curr_proc->parent != proc )
@@ -43,9 +44,13 @@ int wait2(int* retime, int* rutime, int* stime)
       children_remaining = true;
       if( curr_proc-> state == ZOMBIE )
       {
-        curr_proc->state = UNUSED;
+        *retime = curr_proc->retime;
+        *rutime = curr_proc->rutime;
+        *stime  = curr_proc->stime;
+        pid     = curr_proc->pid;
+        clear_process(curr_proc);
         release(&ptable.lock);
-        return 1;
+        return pid;
       }
     }
 
@@ -56,6 +61,17 @@ int wait2(int* retime, int* rutime, int* stime)
     }
     sleep( proc, &ptable.lock );
   }
+}
+
+void clear_process( struct proc* p )
+{
+  freevm(p->pgdir);
+  kfree(p->kstack);
+  p->kstack = 0;
+  p->state = UNUSED;
+  p->pid = 0;
+  p->parent = 0;
+  p->killed = 0;
 }
 
 //Used in trap.c but placed here cause we need access to ptable.

@@ -69,7 +69,9 @@ struct proc {
   int rutime;
 };
 
+void clear_process( struct proc* );
 void increment_ticks();
+
 
 // Process memory is laid out contiguously, low addresses first:
 //   text
