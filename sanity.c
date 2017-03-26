@@ -16,23 +16,47 @@ int main(int argc, char* argv[])
 
  	int retime, rutime, stime;
  	int cpu_retime = 0, cpu_rutime = 0, cpu_stime = 0;
+ 	int short_retime = 0, short_rutime = 0, short_stime = 0;
+ 	int IO_retime = 0, IO_rutime = 0, IO_stime = 0;
 	int i, j, k, n, pid;
 	n = atoi(argv[1]);//fork 3*n times
 
 	printf(1, "Beginning sanity test.\n");
-	for(i = 0; i < 3*n; i++)
+	for( i = 0; i < 3*n; i++ )
 	{
 		pid = fork();
 		if( pid == 0 )//Child process
 		{
-			//This simulates our CPU Bound processes
-			for(j = 0; j < 1000000; j++)
+			switch(getpid() % 3)
 			{
-				for(k = 0; k < 100; k++)
-				{
-					asm("nop");
-				}
+				case 0:
+					//This simulates our CPU Bound processes
+					for( j = 0; j < 100; j++ )
+					{
+						for( k = 0; k < 1000000; k++ )
+						{
+							asm("nop");
+						}
+					}
+					break;
+				case 1:
+					for( j = 0; j < 100; j++ )
+					{
+						for( k = 0; k < 1000000; k++ )
+						{
+							asm("nop");
+						}
+						//yield();
+					}
+					break;
+				case 2:
+					for( j = 0; j < 100; j++ )
+					{
+						sleep(1);
+					}
+					break;
 			}
+			
 			exit();
 		}
 		continue;
@@ -41,9 +65,25 @@ int main(int argc, char* argv[])
 	for (i = 0; i < 3 * n; i++)
 	{
 		pid = wait2(&retime, &rutime, &stime);
-		cpu_retime += retime;
-		cpu_rutime += rutime;
-		cpu_stime  += stime;
+		switch(pid % 3)
+		{
+			case 0:
+				cpu_retime   += retime;
+				cpu_rutime   += rutime;
+				cpu_stime    += stime;
+				break;
+			case 1:
+				short_retime += retime;
+				short_rutime += rutime;
+				short_stime  += stime;
+				break;
+			case 2:
+				IO_retime    += retime;
+				IO_rutime    += rutime;
+				IO_stime     += stime;
+				break;
+		}
+		
 	}
 	printf(1, "Exiting sanity test.\n");
 	printf(1,  "CPU Bound process summary:\n\
@@ -51,5 +91,15 @@ Average Ready Time:     %d\n\
 Average Running time:   %d\n\
 Average Sleep Time:     %d\n\
 Average Total Run Time: %d\n", cpu_retime, cpu_rutime, cpu_stime, (cpu_retime+cpu_rutime+cpu_stime)/n);
+	printf(1,  "Short process summary:\n\
+Average Ready Time:     %d\n\
+Average Running time:   %d\n\
+Average Sleep Time:     %d\n\
+Average Total Run Time: %d\n", short_retime, short_rutime, short_stime, (short_retime+short_rutime+short_stime)/n);
+	printf(1,  "I/O process summary:\n\
+Average Ready Time:     %d\n\
+Average Running time:   %d\n\
+Average Sleep Time:     %d\n\
+Average Total Run Time: %d\n", IO_retime, IO_rutime, IO_stime, (IO_retime+IO_rutime+IO_stime)/n);
 	exit();
 }
