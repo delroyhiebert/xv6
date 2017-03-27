@@ -20,6 +20,7 @@ int main(int argc, char* argv[])
  	int IO_retime = 0, IO_rutime = 0, IO_stime = 0;
 	int i, j, k, n, pid;
 	n = atoi(argv[1]);//fork 3*n times
+	char type[6];
 
 	printf(1, "Beginning sanity test.\n");
 	for( i = 0; i < 3*n; i++ )
@@ -56,7 +57,7 @@ int main(int argc, char* argv[])
 					}
 					break;
 			}
-			
+
 			exit();
 		}
 		continue;
@@ -65,6 +66,21 @@ int main(int argc, char* argv[])
 	for (i = 0; i < 3 * n; i++)
 	{
 		pid = wait2(&retime, &rutime, &stime);
+
+		switch(pid % 3)
+		{
+			case 0:
+				strcpy(type, "CPU\0");
+				break;
+			case 1:
+				strcpy(type, "Short\0");
+				break;
+			case 2:
+				strcpy(type, "I/O\0");
+				break;
+		}
+		printf(1, "Pid: %d, Type: %s, Wait time: %d, Run time: %d, I/O time: %d\n", pid, type, retime, rutime, stime);
+
 		switch(pid % 3)
 		{
 			case 0:
@@ -83,7 +99,7 @@ int main(int argc, char* argv[])
 				IO_stime     += stime;
 				break;
 		}
-		
+
 	}
 	printf(1, "Exiting sanity test.\n");
 	printf(1,  "CPU Bound process summary:\n\
