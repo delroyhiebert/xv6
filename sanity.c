@@ -31,6 +31,7 @@ int main(int argc, char* argv[])
 		pid = fork();
 		if( pid == 0 )//Child process
 		{
+			//printf(1, "Pid %d is running.\n", getpid());
 			switch(getpid() % 3)
 			{
 				case 0:
@@ -50,9 +51,7 @@ int main(int argc, char* argv[])
 						{
 							asm("nop");
 						}
-						//printf(1, "Pid %d is calling yield.\n", getpid()); //much race conditions.
 						yield2();
-						//printf(1, "Pid %d has been rescheduled.\n", getpid());
 					}
 					break;
 				case 2:
@@ -62,7 +61,7 @@ int main(int argc, char* argv[])
 					}
 					break;
 			}
-
+			//printf(1, "Pid %d is done running.\n", getpid());
 			exit();
 		}
 		continue;
@@ -84,7 +83,7 @@ int main(int argc, char* argv[])
 				strcpy(type, "I/O\0");
 				break;
 		}
-		printf(1, "Pid: %d, Type: %s, Ready time: %d, Run time: %d, I/O time: %d\n", pid, type, retime, rutime, stime);
+		//printf(1, "Pid: %d, Type: %s, Ready time: %d, Run time: %d, I/O time: %d\n", pid, type, retime, rutime, stime);
 
 		switch(pid % 3)
 		{

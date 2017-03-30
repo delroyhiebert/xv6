@@ -63,10 +63,10 @@ struct proc {
   struct file *ofile[NOFILE];  // Open files
   struct inode *cwd;           // Current directory
   char name[16];               // Process name (debugging)
-  uint ctime;
-  int stime;
-  int retime;
-  int rutime;
+  uint ctime;				   // Creation time
+  int stime;				   // Sleep time
+  int retime;				   // Ready time
+  int rutime;				   // Run time
 };
 
 void clear_process( struct proc* );

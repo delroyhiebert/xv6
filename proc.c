@@ -158,7 +158,7 @@ userinit(void)
   extern char _binary_initcode_start[], _binary_initcode_size[];
 
   p = allocproc();
-  
+
   initproc = p;
   if((p->pgdir = setupkvm()) == 0)
     panic("userinit: out of memory?");
@@ -360,6 +360,7 @@ scheduler(void)
 
     // Loop over process table looking for process to run.
     acquire(&ptable.lock);
+
 #ifdef DEFAULT
     for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
       if(p->state != RUNNABLE)
@@ -379,6 +380,37 @@ scheduler(void)
       proc = 0;
     }
 #endif
+
+#ifdef FCFS
+	int lowest_ctime = 0xFFFFFFFF; //Max int
+	struct proc *chosen;
+	chosen = 0;
+
+	for(p = ptable.proc; p < &ptable.proc[NPROC]; p++)
+	{
+		//find proc with lowest creation time.
+		if((p->state == RUNNABLE) && (p->ctime < lowest_ctime))
+		{
+			lowest_ctime = p->ctime;
+			chosen = p;
+		}
+	}
+
+	//Switch to chosen process if one is available
+	if (chosen != 0)
+	{
+		proc = chosen;
+		switchuvm(chosen);
+		chosen->state = RUNNING;
+		swtch(&cpu->scheduler, chosen->context);
+		switchkvm();
+
+		//chosen is done running
+		proc = 0;
+	}
+
+#endif
+
     release(&ptable.lock);
 
   }
