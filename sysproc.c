@@ -6,15 +6,31 @@
 #include "memlayout.h"
 #include "mmu.h"
 #include "proc.h"
+#include "spinlock.h"
+
+struct {
+  struct spinlock lock;
+  struct proc proc[NPROC];
+} ptable;
 
 int sys_wait2(void)
 {
   int* retime, *rutime, *stime;
-  if ( argptr(0, (void*)&retime, sizeof(retime)) < 0 
-    || argptr(1, (void*)&rutime, sizeof(retime)) < 0 
+  if ( argptr(0, (void*)&retime, sizeof(retime)) < 0
+    || argptr(1, (void*)&rutime, sizeof(retime)) < 0
     || argptr(2, (void*)&stime,  sizeof(stime )) < 0)
     return -1;
   return wait2(retime, rutime, stime);//stubbed function for now
+}
+
+int sys_yield2(void)
+{
+	acquire(&ptable.lock);  //DOC: yieldlock
+	proc->state = RUNNABLE;
+	sched();
+	release(&ptable.lock);
+
+	return 0;
 }
 
 int

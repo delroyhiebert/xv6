@@ -47,7 +47,9 @@ int main(int argc, char* argv[])
 						{
 							asm("nop");
 						}
-						//yield();
+						//printf(1, "Pid %d is calling yield.\n", getpid()); //much race conditions.
+						yield2();
+						//printf(1, "Pid %d has been rescheduled.\n", getpid());
 					}
 					break;
 				case 2:

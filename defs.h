@@ -120,6 +120,7 @@ void            userinit(void);
 int             wait(void);
 void            wakeup(void*);
 void            yield(void);
+int 			yield2(void);
 
 int			wait2(int*, int*, int*);
 
