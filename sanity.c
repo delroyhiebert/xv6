@@ -18,6 +18,9 @@ int main(int argc, char* argv[])
  	int cpu_retime = 0, cpu_rutime = 0, cpu_stime = 0;
  	int short_retime = 0, short_rutime = 0, short_stime = 0;
  	int IO_retime = 0, IO_rutime = 0, IO_stime = 0;
+	int avg_cpu_retime, avg_cpu_rutime, avg_cpu_stime;
+	int avg_short_retime, avg_short_rutime, avg_short_stime;
+	int avg_IO_retime, avg_IO_rutime, avg_IO_stime;
 	int i, j, k, n, pid;
 	n = atoi(argv[1]);//fork 3*n times
 	char type[6];
@@ -81,7 +84,7 @@ int main(int argc, char* argv[])
 				strcpy(type, "I/O\0");
 				break;
 		}
-		printf(1, "Pid: %d, Type: %s, Wait time: %d, Run time: %d, I/O time: %d\n", pid, type, retime, rutime, stime);
+		printf(1, "Pid: %d, Type: %s, Ready time: %d, Run time: %d, I/O time: %d\n", pid, type, retime, rutime, stime);
 
 		switch(pid % 3)
 		{
@@ -103,21 +106,32 @@ int main(int argc, char* argv[])
 		}
 
 	}
+
+	avg_cpu_retime = cpu_retime / n;
+	avg_cpu_rutime = cpu_rutime / n;
+	avg_cpu_stime  = cpu_stime  / n;
+	avg_short_retime = short_retime / n;
+	avg_short_rutime = short_rutime / n;
+	avg_short_stime = short_stime / n;
+	avg_IO_retime = IO_retime / n;
+	avg_IO_rutime = IO_rutime / n;
+	avg_IO_stime = IO_stime / n;
+
 	printf(1, "Exiting sanity test.\n");
 	printf(1,  "CPU Bound process summary:\n\
 Average Ready Time:     %d\n\
 Average Running time:   %d\n\
 Average Sleep Time:     %d\n\
-Average Total Run Time: %d\n", cpu_retime, cpu_rutime, cpu_stime, (cpu_retime+cpu_rutime+cpu_stime)/n);
+Average Total Run Time: %d\n", avg_cpu_retime, avg_cpu_rutime, avg_cpu_stime, (cpu_retime+cpu_rutime+cpu_stime)/n);
 	printf(1,  "Short process summary:\n\
 Average Ready Time:     %d\n\
 Average Running time:   %d\n\
 Average Sleep Time:     %d\n\
-Average Total Run Time: %d\n", short_retime, short_rutime, short_stime, (short_retime+short_rutime+short_stime)/n);
+Average Total Run Time: %d\n", avg_short_retime, avg_short_rutime, avg_short_stime, (short_retime+short_rutime+short_stime)/n);
 	printf(1,  "I/O process summary:\n\
 Average Ready Time:     %d\n\
 Average Running time:   %d\n\
 Average Sleep Time:     %d\n\
-Average Total Run Time: %d\n", IO_retime, IO_rutime, IO_stime, (IO_retime+IO_rutime+IO_stime)/n);
+Average Total Run Time: %d\n", avg_IO_retime, avg_IO_rutime, avg_IO_stime, (IO_retime+IO_rutime+IO_stime)/n);
 	exit();
 }
