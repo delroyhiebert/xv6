@@ -415,20 +415,20 @@ scheduler(void)
 #endif
 
 #ifdef SML
-	//check first queue first, second queue second, etc.
+	//DOES THIS WORK LOL
 	struct proc *chosen;
 	chosen = 0;
 
 	for(p = ptable.proc; p < &ptable.proc[NPROC]; p++)
 	{
-		if((p->state == RUNNABLE) && (p->plevel = 3)) //make sure procs are init'd to 2
+		if((p->state == RUNNABLE) && (p->plevel = 3))
 		{
 			chosen = p;
 			break;
 		}
 	}
 
-	if(chosen != 0)
+	if(chosen == 0)
 	{
 		for(p = ptable.proc; p < &ptable.proc[NPROC]; p++)
 		{
@@ -440,7 +440,7 @@ scheduler(void)
 		}
 	}
 
-	if(chosen != 0)
+	if(chosen == 0)
 	{
 		for(p = ptable.proc; p < &ptable.proc[NPROC]; p++)
 		{

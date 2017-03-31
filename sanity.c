@@ -36,6 +36,7 @@ int main(int argc, char* argv[])
 			{
 				case 0:
 					//This simulates our CPU Bound processes
+					//set_prio(3);
 					for( j = 0; j < 100; j++ )
 					{
 						for( k = 0; k < 1000000; k++ )
