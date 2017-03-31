@@ -20,7 +20,24 @@ int sys_wait2(void)
     || argptr(1, (void*)&rutime, sizeof(retime)) < 0
     || argptr(2, (void*)&stime,  sizeof(stime )) < 0)
     return -1;
-  return wait2(retime, rutime, stime);//stubbed function for now
+  return wait2(retime, rutime, stime);
+}
+
+int sys_set_prio(void)
+{
+	int priority;
+	if(argint(0, &priority) < 0)
+		return 1;
+
+	//Input validation
+	if((priority > 3) && (priority < 1))
+	{
+		return 1;
+	}
+
+	proc->plevel = priority;
+
+	return 0;
 }
 
 int sys_yield2(void)

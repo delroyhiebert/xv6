@@ -67,6 +67,7 @@ struct proc {
   int stime;				   // Sleep time
   int retime;				   // Ready time
   int rutime;				   // Run time
+  int plevel;				   // Priority level
 };
 
 void clear_process( struct proc* );

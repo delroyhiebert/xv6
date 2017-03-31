@@ -73,7 +73,7 @@ QEMU = $(shell if which qemu > /dev/null; \
 endif
 
 ifndef SCHEDFLAG
-SCHEDFLAG := FCFS
+SCHEDFLAG := SML
 endif
 
 CC = $(TOOLPREFIX)gcc

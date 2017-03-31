@@ -232,6 +232,9 @@ fork(void)
   np->parent = proc;
   *np->tf = *proc->tf;
 
+  //Give child the same priority as the parent
+  np->plevel = proc->plevel;
+
   // Clear %eax so that fork returns 0 in the child.
   np->tf->eax = 0;
 
@@ -388,7 +391,7 @@ scheduler(void)
 
 	for(p = ptable.proc; p < &ptable.proc[NPROC]; p++)
 	{
-		//find proc with lowest creation time.
+		//Find proc with lowest creation time.
 		if((p->state == RUNNABLE) && (p->ctime < lowest_ctime))
 		{
 			lowest_ctime = p->ctime;
@@ -397,6 +400,59 @@ scheduler(void)
 	}
 
 	//Switch to chosen process if one is available
+	if (chosen != 0)
+	{
+		proc = chosen;
+		switchuvm(chosen);
+		chosen->state = RUNNING;
+		swtch(&cpu->scheduler, chosen->context);
+		switchkvm();
+
+		//chosen is done running
+		proc = 0;
+	}
+
+#endif
+
+#ifdef SML
+	//check first queue first, second queue second, etc.
+	struct proc *chosen;
+	chosen = 0;
+
+	for(p = ptable.proc; p < &ptable.proc[NPROC]; p++)
+	{
+		if((p->state == RUNNABLE) && (p->plevel = 3)) //make sure procs are init'd to 2
+		{
+			chosen = p;
+			break;
+		}
+	}
+
+	if(chosen != 0)
+	{
+		for(p = ptable.proc; p < &ptable.proc[NPROC]; p++)
+		{
+			if((p->state == RUNNABLE) && (p->plevel = 2))
+			{
+				chosen = p;
+				break;
+			}
+		}
+	}
+
+	if(chosen != 0)
+	{
+		for(p = ptable.proc; p < &ptable.proc[NPROC]; p++)
+		{
+			if((p->state == RUNNABLE) && (p->plevel = 1))
+			{
+				chosen = p;
+				break;
+			}
+		}
+	}
+
+    //Switch to chosen process if one is available
 	if (chosen != 0)
 	{
 		proc = chosen;

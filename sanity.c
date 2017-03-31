@@ -83,7 +83,7 @@ int main(int argc, char* argv[])
 				strcpy(type, "I/O\0");
 				break;
 		}
-		//printf(1, "Pid: %d, Type: %s, Ready time: %d, Run time: %d, I/O time: %d\n", pid, type, retime, rutime, stime);
+		printf(1, "Pid: %d, Type: %s, Ready time: %d, Run time: %d, I/O time: %d\n", pid, type, retime, rutime, stime);
 
 		switch(pid % 3)
 		{
@@ -103,7 +103,6 @@ int main(int argc, char* argv[])
 				IO_stime     += stime;
 				break;
 		}
-
 	}
 
 	avg_cpu_retime = cpu_retime / n;
