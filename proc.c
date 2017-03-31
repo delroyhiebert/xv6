@@ -158,6 +158,7 @@ userinit(void)
   extern char _binary_initcode_start[], _binary_initcode_size[];
 
   p = allocproc();
+  p->plevel = 2;
 
   initproc = p;
   if((p->pgdir = setupkvm()) == 0)
@@ -421,7 +422,7 @@ scheduler(void)
 
 	for(p = ptable.proc; p < &ptable.proc[NPROC]; p++)
 	{
-		if((p->state == RUNNABLE) && (p->plevel = 3))
+		if((p->state == RUNNABLE) && (p->plevel == 3))
 		{
 			chosen = p;
 			break;
@@ -432,7 +433,7 @@ scheduler(void)
 	{
 		for(p = ptable.proc; p < &ptable.proc[NPROC]; p++)
 		{
-			if((p->state == RUNNABLE) && (p->plevel = 2))
+			if((p->state == RUNNABLE) && (p->plevel == 2))
 			{
 				chosen = p;
 				break;
@@ -444,7 +445,7 @@ scheduler(void)
 	{
 		for(p = ptable.proc; p < &ptable.proc[NPROC]; p++)
 		{
-			if((p->state == RUNNABLE) && (p->plevel = 1))
+			if((p->state == RUNNABLE) && (p->plevel == 1))
 			{
 				chosen = p;
 				break;

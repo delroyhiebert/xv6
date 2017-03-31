@@ -30,7 +30,7 @@ int sys_set_prio(void)
 		return 1;
 
 	//Input validation
-	if((priority > 3) && (priority < 1))
+	if((priority > 3) || (priority < 1))
 	{
 		return 1;
 	}
