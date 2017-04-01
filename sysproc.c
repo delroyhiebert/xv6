@@ -40,13 +40,9 @@ int sys_set_prio(void)
 	return 0;
 }
 
-int sys_yield2(void)
+int sys_yield(void)
 {
-	acquire(&ptable.lock);  //DOC: yieldlock
-	proc->state = RUNNABLE;
-	sched();
-	release(&ptable.lock);
-
+	yield();
 	return 0;
 }
 

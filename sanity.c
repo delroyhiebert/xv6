@@ -52,7 +52,7 @@ int main(int argc, char* argv[])
 						{
 							asm("nop");
 						}
-						yield2();
+						yield();
 					}
 					break;
 				case 2:

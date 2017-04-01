@@ -99,7 +99,7 @@ extern int sys_wait(void);
 extern int sys_write(void);
 extern int sys_uptime(void);
 extern int sys_wait2(void);
-extern int sys_yield2(void);
+extern int sys_yield(void);
 extern int sys_set_prio(void);
 
 static int (*syscalls[])(void) = {
@@ -125,7 +125,7 @@ static int (*syscalls[])(void) = {
 [SYS_mkdir]   sys_mkdir,
 [SYS_close]   sys_close,
 [SYS_wait2]   sys_wait2,
-[SYS_yield2]  sys_yield2,
+[SYS_yield]  sys_yield,
 [SYS_set_prio] sys_set_prio,
 };
 

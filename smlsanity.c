@@ -35,7 +35,7 @@ int main (int argc, char* argv[])
 				{
 					asm("nop");
 				}
-				yield2();
+				yield();
 			}
 			printf(1, "Pid: %d, Term time: %d Class: %d\n", getpid(), uptime(), (getpid()%3)+1);
 			exit();
