@@ -98,6 +98,23 @@ void increment_ticks()
   release(&ptable.lock);
 }
 
+void decrease_priority()
+{
+  acquire(&ptable.lock);
+  if( proc->plevel > 1 )
+    proc->plevel -= 1;
+  release(&ptable.lock);
+}
+
+int increment_pticks()
+{
+  int ticks;
+  acquire(&ptable.lock);
+  ticks = ++proc->pticks;
+  release(&ptable.lock);
+  return ticks;
+}
+
 //PAGEBREAK: 32
 // Look in the process table for an UNUSED proc.
 // If found, change state to EMBRYO and initialize
@@ -465,6 +482,59 @@ scheduler(void)
 		//chosen is done running
 		proc = 0;
 	}
+#endif
+
+#ifdef DML
+  //LOL its like the same thing as SML? WHAT AM I MISSING
+  struct proc *chosen;
+  chosen = 0;
+
+  for(p = ptable.proc; p < &ptable.proc[NPROC]; p++)
+  {
+    if((p->state == RUNNABLE) && (p->plevel == 3))
+    {
+      chosen = p;
+      break;
+    }
+  }
+
+  if(chosen == 0)
+  {
+    for(p = ptable.proc; p < &ptable.proc[NPROC]; p++)
+    {
+      if((p->state == RUNNABLE) && (p->plevel == 2))
+      {
+        chosen = p;
+        break;
+      }
+    }
+  }
+
+  if(chosen == 0)
+  {
+    for(p = ptable.proc; p < &ptable.proc[NPROC]; p++)
+    {
+      if((p->state == RUNNABLE) && (p->plevel == 1))
+      {
+        chosen = p;
+        break;
+      }
+    }
+  }
+
+    //Switch to chosen process if one is available
+  if (chosen != 0)
+  {
+    proc = chosen;
+    switchuvm(chosen);
+    chosen->pticks = 0;
+    chosen->state = RUNNING;
+    swtch(&cpu->scheduler, chosen->context);
+    switchkvm();
+
+    //chosen is done running
+    proc = 0;
+  }
 
 #endif
 
@@ -576,7 +646,12 @@ wakeup1(void *chan)
 
   for(p = ptable.proc; p < &ptable.proc[NPROC]; p++)
     if(p->state == SLEEPING && p->chan == chan)
+    {
+#ifdef DML
+      p->plevel = 3;
+#endif
       p->state = RUNNABLE;
+    }
 }
 
 // Wake up all processes sleeping on chan.

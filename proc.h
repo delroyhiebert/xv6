@@ -68,10 +68,13 @@ struct proc {
   int retime;				   // Ready time
   int rutime;				   // Run time
   int plevel;				   // Priority level
+  int pticks;          // Process has been running for x ticks
 };
 
 void clear_process( struct proc* );
 void increment_ticks();
+int  increment_pticks();
+void decrease_priority();
 
 
 // Process memory is laid out contiguously, low addresses first:
