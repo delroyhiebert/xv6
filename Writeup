@@ -1,0 +1,25 @@
+Default - Run using sanity 5,
+CPU Bound processes have a turnaround time of 156 ticks.
+Short processes have a turnaround time of 121 ticks.
+IO processes have a turnaround time of 225 ticks.
+This is our control run. The default scheduling policy preempts processes and we will see how our new scheduling policies run in comparison to this.
+
+FCFS -Run using sanity 5, 
+CPU Bound processes have a turnaround time of 133 ticks.
+Short processes have a turnaround time of 123 ticks.
+IO processes have a turnaround time of 255 ticks.
+These results are expected as the CPU processes are no longer being preempted while they are running which results in a decreased turnaround time. The cost coming at the increase of turnaround time for IO processes. With no preemption, the IO processes have to wait not only until they are ready to run, but until all processes before them have completed.
+
+SML - sanity 5
+CPU Bound processes have a turnaround time of 146 ticks.
+Short processes have a turnaround time of 118 ticks.
+IO processes have a turnaround time of 266 ticks.
+Running the SML scheduler with the normal test reveals no real change in results as all children processes are spawned at the same priority. As a result this is a similar result to our other results.
+
+smlsanity doesn't output completion times, it simply demonstrates process order upon completion
+
+DML - sanity 5
+CPU Bound processes have a turnaround time of 130 ticks.
+Short processes have a turnaround time of 127 ticks.
+IO processes have a turnaround time of 234 ticks.
+With DML we see that the turnaround time for IO processes has dropped significantly compared to our other scheduling policies while the other two types of processes have remained about the same.
