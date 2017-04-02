@@ -118,19 +118,19 @@ int main(int argc, char* argv[])
 
 	printf(1, "Exiting sanity test.\n");
 	printf(1,  "CPU Bound process summary:\n\
-Average Ready Time:     %d\n\
-Average Running time:   %d\n\
-Average Sleep Time:     %d\n\
-Average Total Run Time: %d\n", avg_cpu_retime, avg_cpu_rutime, avg_cpu_stime, (cpu_retime+cpu_rutime+cpu_stime)/n);
+Average Ready Time:      %d\n\
+Average Running time:    %d\n\
+Average Sleep Time:      %d\n\
+Average Turnaround Time: %d\n", avg_cpu_retime, avg_cpu_rutime, avg_cpu_stime, (cpu_retime+cpu_rutime+cpu_stime)/n);
 	printf(1,  "Short process summary:\n\
-Average Ready Time:     %d\n\
-Average Running time:   %d\n\
-Average Sleep Time:     %d\n\
-Average Total Run Time: %d\n", avg_short_retime, avg_short_rutime, avg_short_stime, (short_retime+short_rutime+short_stime)/n);
+Average Ready Time:      %d\n\
+Average Running time:    %d\n\
+Average Sleep Time:      %d\n\
+Average Turnaround Time: %d\n", avg_short_retime, avg_short_rutime, avg_short_stime, (short_retime+short_rutime+short_stime)/n);
 	printf(1,  "I/O process summary:\n\
-Average Ready Time:     %d\n\
-Average Running time:   %d\n\
-Average Sleep Time:     %d\n\
-Average Total Run Time: %d\n", avg_IO_retime, avg_IO_rutime, avg_IO_stime, (IO_retime+IO_rutime+IO_stime)/n);
+Average Ready Time:      %d\n\
+Average Running time:    %d\n\
+Average Sleep Time:      %d\n\
+Average Turnaround Time: %d\n", avg_IO_retime, avg_IO_rutime, avg_IO_stime, (IO_retime+IO_rutime+IO_stime)/n);
 	exit();
 }
