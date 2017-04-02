@@ -4,7 +4,7 @@ Short processes have a turnaround time of 121 ticks.
 IO processes have a turnaround time of 225 ticks.
 This is our control run. The default scheduling policy preempts processes and we will see how our new scheduling policies run in comparison to this.
 
-FCFS -Run using sanity 5, 
+FCFS -Run using sanity 5,
 CPU Bound processes have a turnaround time of 133 ticks.
 Short processes have a turnaround time of 123 ticks.
 IO processes have a turnaround time of 255 ticks.
@@ -16,7 +16,7 @@ Short processes have a turnaround time of 118 ticks.
 IO processes have a turnaround time of 266 ticks.
 Running the SML scheduler with the normal test reveals no real change in results as all children processes are spawned at the same priority. As a result this is a similar result to our other results.
 
-smlsanity doesn't output completion times, it simply demonstrates process order upon completion
+smlsanity doesn't output completion times, it simply demonstrates process order upon completion. The way smlsanity works is that it assigns priorities to processes in three different "classes", priority 1, 2, or 3. smlsanity shows that processes with higher priorities do in fact tend to terminate earlier then processes with lower priority.
 
 DML - sanity 5
 CPU Bound processes have a turnaround time of 130 ticks.
