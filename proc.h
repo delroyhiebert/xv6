@@ -48,6 +48,24 @@ struct context {
 
 enum procstate { UNUSED, EMBRYO, SLEEPING, RUNNABLE, RUNNING, ZOMBIE };
 
+struct pagedescriptor
+{
+  char* virtualAddress;
+  uint swapfileLocation;
+  int pageAge;
+};
+
+#define MAX_PSYC_PAGES 15
+#define MAX_TOTAL_PAGES 30
+
+struct page
+{
+  char* virtualAddress;
+  int pageAge;
+  struct page* next;
+  struct page* previous;
+};
+
 // Per-process state
 struct proc {
   uint sz;                     // Size of process memory (bytes)
@@ -63,6 +81,17 @@ struct proc {
   struct file *ofile[NOFILE];  // Open files
   struct inode *cwd;           // Current directory
   char name[16];               // Process name (debugging)
+
+  struct file* swapFile;
+  struct page pages[MAX_PSYC_PAGES];
+  struct pagedescriptor sPages[MAX_PSYC_PAGES];
+  struct page* head;
+  struct page* tail;
+
+  int memoryPages;
+  int swappedPages;
+  int faultCount;
+  int swapCount;
 };
 
 // Process memory is laid out contiguously, low addresses first:

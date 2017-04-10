@@ -20,6 +20,40 @@ extern void trapret(void);
 
 static void wakeup1(void *chan);
 
+void updateNfuAges()
+{
+  struct proc *p;
+  int i;
+  pte_t *pte, *pde, *pgtab;
+
+  acquire(&ptable.lock);
+  for( p = ptable.proc; p < &ptable.proc[NPROC]; p++ ){
+    if(( p->state == RUNNING || p->state == RUNNABLE || p->state == SLEEPING) && (p->pid > 2) )
+    {
+      for ( i = 0; i < MAX_PSYC_PAGES; i++ ){
+        if ( p->pages[i].virtualAddress == (char*)0xffffffff )
+          continue;
+        ++p->pages[i].pageAge;
+        ++p->sPages[i].pageAge;
+        pde = &p->pgdir[PDX( p->pages[i].virtualAddress )];
+        if( *pde & PTE_P )
+        {
+          pgtab = (pte_t*)P2V(PTE_ADDR(*pde));
+          pte = &pgtab[PTX( p->pages[i].virtualAddress )];
+        }
+        else 
+          pte = 0;
+        if(pte)
+          if( *pte & PTE_A )
+          {
+            p->pages[i].pageAge = 0;
+          }
+      }
+    }
+  }
+  release(&ptable.lock);
+}
+
 void
 pinit(void)
 {

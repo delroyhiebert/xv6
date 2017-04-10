@@ -10,6 +10,9 @@ struct sleeplock;
 struct stat;
 struct superblock;
 
+struct inode* create( char* path, short type, short major, short minor );
+int isdirempty(struct inode *dp);
+
 // bio.c
 void            binit(void);
 struct buf*     bread(uint, uint);
@@ -52,6 +55,10 @@ struct inode*   nameiparent(char*, char*);
 int             readi(struct inode*, char*, uint, uint);
 void            stati(struct inode*, struct stat*);
 int             writei(struct inode*, char*, uint, uint);
+int 			initializeSwapFile( struct proc* p );
+int 			readSwapFile( struct proc* p, char* buffer, uint offset, uint size );
+int 			writeSwapFile( struct proc* p, char* buffer, uint offset, uint size );
+int 			deleteSwapFile( struct proc* p );
 
 // ide.c
 void            ideinit(void);
@@ -116,6 +123,7 @@ void            userinit(void);
 int             wait(void);
 void            wakeup(void*);
 void            yield(void);
+void			updateNfuAges(void);
 
 // swtch.S
 void            swtch(struct context**, struct context*);
@@ -143,6 +151,7 @@ char*           safestrcpy(char*, const char*, int);
 int             strlen(const char*);
 int             strncmp(const char*, const char*, uint);
 char*           strncpy(char*, const char*, int);
+int             strcmp(const char *, const char *);
 
 // syscall.c
 int             argint(int, int*);
@@ -181,6 +190,9 @@ void            switchuvm(struct proc*);
 void            switchkvm(void);
 int             copyout(pde_t*, uint, void*, uint);
 void            clearpteu(pde_t *pgdir, char *uva);
+void			checkProcessAccessBit(void);
+
+void			pageSwap(uint);
 
 // number of elements in fixed-size array
 #define NELEM(x) (sizeof(x)/sizeof((x)[0]))

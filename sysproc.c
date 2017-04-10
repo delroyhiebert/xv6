@@ -51,6 +51,11 @@ sys_sbrk(void)
   if(argint(0, &n) < 0)
     return -1;
   addr = proc->sz;
+  if( n == -1 )
+  {
+    checkProcessAccessBit();
+    return -1;
+  }
   if(growproc(n) < 0)
     return -1;
   return addr;

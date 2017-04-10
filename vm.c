@@ -10,6 +10,74 @@
 extern char data[];  // defined by kernel.ld
 pde_t *kpgdir;  // for use in scheduler()
 
+// Return the address of the PTE in page table pgdir
+// that corresponds to virtual address va.  If alloc!=0,
+// create any required page table pages.
+static pte_t *
+walkpgdir(pde_t *pgdir, const void *va, int alloc)
+{
+  pde_t *pde;
+  pte_t *pgtab;
+
+  pde = &pgdir[PDX(va)];
+  if(*pde & PTE_P){
+    pgtab = (pte_t*)P2V(PTE_ADDR(*pde));
+  } else {
+    if(!alloc || (pgtab = (pte_t*)kalloc()) == 0)
+      return 0;
+    // Make sure all those PTE_P bits are zero.
+    memset(pgtab, 0, PGSIZE);
+    // The permissions here are overly generous, but they can
+    // be further restricted by the permissions in the page table
+    // entries, if necessary.
+    *pde = V2P(pgtab) | PTE_P | PTE_W | PTE_U;
+  }
+  return &pgtab[PTX(va)];
+}
+
+int checkAccessBit( char* virtualAddress )
+{
+  uint access;
+  pte_t *pte = walkpgdir(proc->pgdir, (void*)virtualAddress, 0);
+  if (!*pte)
+    panic("checkAccBit: pte is empty");
+  access = (*pte) & PTE_A;
+  (*pte) &= ~PTE_A;
+  return access;
+}
+
+void checkProcessAccessBit()
+{
+  int i;
+  pte_t *pte;
+
+  for (i = 0; i < MAX_PSYC_PAGES; i++)
+  {
+    if (proc->pages[i].virtualAddress != (char*)0xffffffff)
+    {
+      pte = walkpgdir(proc->pgdir, (void*)proc->pages[i].virtualAddress, 0);
+      if (!*pte)
+      {
+        continue;
+      }
+    }
+  }
+}
+
+void writeNewNfuPage( char* virtualAddress )
+{
+  int i;
+  for (i = 0; i < MAX_PSYC_PAGES; i++)
+  {
+    if( proc->pages[i].virtualAddress == (char*)0xffffffff )
+    {
+      proc->pages[i].virtualAddress = virtualAddress;
+      break;
+    }
+  }
+  proc->memoryPages++;
+}
+
 // Set up CPU's kernel segment descriptors.
 // Run once on entry on each CPU.
 void
@@ -38,30 +106,7 @@ seginit(void)
   proc = 0;
 }
 
-// Return the address of the PTE in page table pgdir
-// that corresponds to virtual address va.  If alloc!=0,
-// create any required page table pages.
-static pte_t *
-walkpgdir(pde_t *pgdir, const void *va, int alloc)
-{
-  pde_t *pde;
-  pte_t *pgtab;
 
-  pde = &pgdir[PDX(va)];
-  if(*pde & PTE_P){
-    pgtab = (pte_t*)P2V(PTE_ADDR(*pde));
-  } else {
-    if(!alloc || (pgtab = (pte_t*)kalloc()) == 0)
-      return 0;
-    // Make sure all those PTE_P bits are zero.
-    memset(pgtab, 0, PGSIZE);
-    // The permissions here are overly generous, but they can
-    // be further restricted by the permissions in the page table
-    // entries, if necessary.
-    *pde = V2P(pgtab) | PTE_P | PTE_W | PTE_U;
-  }
-  return &pgtab[PTX(va)];
-}
 
 // Create PTEs for virtual addresses starting at va that refer to
 // physical addresses starting at pa. va and size might not
@@ -229,7 +274,10 @@ allocuvm(pde_t *pgdir, uint oldsz, uint newsz)
 {
   char *mem;
   uint a;
-
+#if defined(NFU) || defined(FIFO)  
+  uint newFlag = 1;
+  //struct page* page;
+#endif
   if(newsz >= KERNBASE)
     return 0;
   if(newsz < oldsz)
@@ -237,12 +285,18 @@ allocuvm(pde_t *pgdir, uint oldsz, uint newsz)
 
   a = PGROUNDUP(oldsz);
   for(; a < newsz; a += PGSIZE){
+#if defined(NFU) || defined(FIFO)
+#endif
     mem = kalloc();
     if(mem == 0){
       cprintf("allocuvm out of memory\n");
       deallocuvm(pgdir, newsz, oldsz);
       return 0;
     }
+#ifdef NFU
+    if( newFlag )
+      writeNewNfuPage((char*)a);
+#endif
     memset(mem, 0, PGSIZE);
     if(mappages(pgdir, (char*)a, PGSIZE, V2P(mem), PTE_W|PTE_U) < 0){
       cprintf("allocuvm out of memory (2)\n");
@@ -395,4 +449,23 @@ copyout(pde_t *pgdir, uint va, void *p, uint len)
 // Blank page.
 //PAGEBREAK!
 // Blank page.
+
+void swapNfuPage(uint address)
+{
+  
+}
+
+void pageSwap( uint address )
+{
+  if (strcmp(proc->name, "init") == 0 || strcmp(proc->name, "sh") == 0) {
+    proc->memoryPages++;
+    return;
+  }
+
+#if NFU
+  swapNfuPage(address);
+#endif
+  lcr3(V2P(proc->pgdir));
+  ++proc->swapCount;
+}
 

@@ -36,6 +36,38 @@ exec(char *path, char **argv)
   if((pgdir = setupkvm()) == 0)
     goto bad;
 
+#if defined(NFU) || defined(FIFO)
+  int memoryPages = proc->memoryPages;
+  int swappedPages = proc->swappedPages;
+  int faultCount = proc->faultCount;
+  int swapCount = proc->swapCount;
+  struct page pages[MAX_PSYC_PAGES];
+  struct pagedescriptor sPages[MAX_PSYC_PAGES];
+  for (i = 0; i < MAX_PSYC_PAGES; i++) {
+    pages[i].virtualAddress = proc->pages[i].virtualAddress;
+    proc->pages[i].virtualAddress = (char*)0xffffffff;
+    pages[i].next = proc->pages[i].next;
+    proc->pages[i].next = 0;
+    pages[i].previous = proc->pages[i].previous;
+    proc->pages[i].previous = 0;
+    pages[i].pageAge = proc->pages[i].pageAge;
+    proc->pages[i].pageAge = 0;
+    sPages[i].pageAge = proc->sPages[i].pageAge;
+    proc->sPages[i].pageAge = 0;
+    sPages[i].virtualAddress = proc->sPages[i].virtualAddress;
+    proc->sPages[i].virtualAddress = (char*)0xffffffff;
+    sPages[i].swapfileLocation = proc->sPages[i].swapfileLocation;
+    proc->sPages[i].swapfileLocation = 0;
+  }
+  struct page *head = proc->head;
+  struct page *tail = proc->tail;
+  proc->memoryPages = 0;
+  proc->swappedPages = 0;
+  proc->faultCount = 0;
+  proc->swapCount = 0;
+  proc->head = 0;
+  proc->tail = 0;
+#endif
   // Load program into memory.
   sz = 0;
   for(i=0, off=elf.phoff; i<elf.phnum; i++, off+=sizeof(ph)){
@@ -97,6 +129,8 @@ exec(char *path, char **argv)
   proc->sz = sz;
   proc->tf->eip = elf.entry;  // main
   proc->tf->esp = sp;
+  deleteSwapFile( proc );//Create a new swap file for the new process
+  initializeSwapFile( proc );
   switchuvm(proc);
   freevm(oldpgdir);
   return 0;
@@ -109,4 +143,21 @@ exec(char *path, char **argv)
     end_op();
   }
   return -1;
+#if defined(NFU) || defined(FIFO)
+  proc->memoryPages = memoryPages;
+  proc->swappedPages = swappedPages;
+  proc->faultCount = faultCount;
+  proc->swapCount = swapCount;
+  proc->head = head;
+  proc->tail = tail;
+  for (i = 0; i < MAX_PSYC_PAGES; i++) {
+    proc->pages[i].virtualAddress = pages[i].virtualAddress;
+    proc->pages[i].next = pages[i].next;
+    proc->pages[i].previous = pages[i].previous;
+    proc->pages[i].pageAge = pages[i].pageAge;
+    proc->sPages[i].pageAge = sPages[i].pageAge;
+    proc->sPages[i].virtualAddress = sPages[i].virtualAddress;
+    proc->sPages[i].swapfileLocation = sPages[i].swapfileLocation;
+  }
+#endif
 }

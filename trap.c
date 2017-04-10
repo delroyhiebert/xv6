@@ -46,10 +46,16 @@ trap(struct trapframe *tf)
     return;
   }
 
+  uint address;
+  pde_t* virtualAddress;
+
   switch(tf->trapno){
   case T_IRQ0 + IRQ_TIMER:
     if(cpunum() == 0){
       acquire(&tickslock);
+#ifdef NFU
+      updateNfuAges();
+#endif
       ticks++;
       wakeup(&ticks);
       release(&tickslock);
@@ -77,6 +83,18 @@ trap(struct trapframe *tf)
             cpunum(), tf->cs, tf->eip);
     lapiceoi();
     break;
+  case T_PGFLT:
+    address = rcr2();
+    virtualAddress = &proc->pgdir[PDX(address)];
+    if ( ( (int)(*virtualAddress) & PTE_P ) != 0 ) 
+    {
+      if ( ( (uint*)PTE_ADDR(P2V(*virtualAddress)) )[PTX(address)] & PTE_PG )
+      {
+        pageSwap(PTE_ADDR(address));
+        ++proc->faultCount;
+        return;
+      }
+    }
 
   //PAGEBREAK: 13
   default:
