@@ -86,7 +86,7 @@ trap(struct trapframe *tf)
   case T_PGFLT:
     address = rcr2();
     virtualAddress = &proc->pgdir[PDX(address)];
-    if ( ( (int)(*virtualAddress) & PTE_P ) != 0 ) 
+    if ( ( (int)(*virtualAddress) & PTE_P ) != 0 )
     {
       if ( ( (uint*)PTE_ADDR(P2V(*virtualAddress)) )[PTX(address)] & PTE_PG )
       {
@@ -95,6 +95,7 @@ trap(struct trapframe *tf)
         return;
       }
     }
+    break;
 
   //PAGEBREAK: 13
   default:
