@@ -12,8 +12,6 @@ struct {
   struct proc proc[NPROC];
 } ptable;
 
-static struct proc *initproc;
-
 int nextpid = 1;
 extern void forkret(void);
 extern void trapret(void);
@@ -25,6 +23,8 @@ pinit(void)
 {
   initlock(&ptable.lock, "ptable");
 }
+
+
 
 //PAGEBREAK: 32
 // Look in the process table for an UNUSED proc.
@@ -72,6 +72,23 @@ found:
   p->context = (struct context*)sp;
   memset(p->context, 0, sizeof *p->context);
   p->context->eip = (uint)forkret;
+
+  if (p->pid > 2) {
+    safestrcpy(p->swapFileName, ".page", 6);
+    itoa(p->pid, &p->swapFileName[5]);
+
+    p->pagefile = createSwapFile(p->swapFileName);
+    memset(p->pagefile_addr, 0xFFFFFFFF, sizeof(int) * MAX_PSYC_PAGES);
+    memset(p->memoryPages, 0xFFFFFFFF, sizeof(int) * MAX_PSYC_PAGES);
+    memset(p->NfuPageAges, 0, sizeof(int) * MAX_PSYC_PAGES);
+    p->next_to_swap = 0;
+
+    p->pagesInMemory = 0;
+    p->pagesInSwapFile = 0;
+
+    p->faultCount = 0;
+    p->swapCount = 0;
+  }
 
   return p;
 }
@@ -148,6 +165,32 @@ fork(void)
     return -1;
   }
 
+  if ((proc != 0) && (proc->pid > 2) &&
+    (np->pid > 2) && (proc->pagefile != 0)) {
+    np->pagesInSwapFile = proc->pagesInSwapFile;
+    np->pagesInMemory = proc->pagesInMemory;
+
+
+    memmove(np->pagefile_addr,proc->pagefile_addr, sizeof(uint) * MAX_PSYC_PAGES);
+    memmove(np->memoryPages, proc->memoryPages, sizeof(uint) * MAX_PSYC_PAGES);
+    memmove(np->NfuPageAges, proc->NfuPageAges, sizeof(uint) * MAX_PSYC_PAGES);
+
+    np->next_to_swap = proc->next_to_swap;
+    np->faultCount = 0;
+    np->swapCount = 0;
+
+    if ((proc->pagefile != 0) && (np->pagefile != 0)) {
+        char pagebuffer[1024];
+
+      for(i = 0; i < MAX_PSYC_PAGES; i++) {
+          if (readSwapFileAtOffset(proc->pagefile, pagebuffer, 1024, i*1024) < 0)
+              panic("fork: unable to read from parent swap file\n");
+          if (writeSwapFileAtOffset(np->pagefile,pagebuffer, 1024, i*1024) < 0)
+              panic("fork: unable to write to child swap file\n");
+      }
+    }
+  }
+
   // Copy process state from p.
   if((np->pgdir = copyuvm(proc->pgdir, proc->sz)) == 0){
     kfree(np->kstack);
@@ -201,6 +244,10 @@ exit(void)
   }
 
   begin_op();
+  if( proc->pid > 2 )
+  {
+    removeSwapFile(proc->swapFileName);
+  }
   iput(proc->cwd);
   end_op();
   proc->cwd = 0;
@@ -482,4 +529,43 @@ procdump(void)
     }
     cprintf("\n");
   }
+}
+
+uint getOldNfuPage()
+{
+  int i;
+  uint min_val;
+  int min_idx;
+  uint va;
+
+  i = 0;
+  min_idx = i;
+  min_val = proc->NfuPageAges[i];
+  for(;i < MAX_PSYC_PAGES;i++) {
+    if ((proc->memoryPages[i] != 0xffffffff) &&
+        (proc->NfuPageAges[i] < min_val)) {
+        min_idx = i;
+        min_val = proc->NfuPageAges[i];
+    }
+  }
+  va = proc->memoryPages[min_idx];
+  proc->memoryPages[min_idx] = 0xffffffff;
+  return va;
+}
+
+int addNewPage(uint va)
+{
+  int i;
+
+  for(i = 0; i < MAX_PSYC_PAGES; i++) {
+    if (proc->memoryPages[i] == 0xffffffff)
+      break;
+  }
+
+  if (i == MAX_PSYC_PAGES)
+    panic("memory full trying to add to memoryPages\n");
+
+  proc->memoryPages[i] = va;
+  proc->NfuPageAges[i] = (1 << 31);
+  return i;
 }

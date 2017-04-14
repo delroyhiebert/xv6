@@ -51,6 +51,10 @@ trap(struct trapframe *tf)
     if(cpunum() == 0){
       acquire(&tickslock);
       ticks++;
+#ifdef NFU
+      if((proc != 0) && (proc != initproc)&& (proc->pid > 2))
+        updateNfuAges(proc->pgdir,proc->memoryPages,proc->NfuPageAges);
+#endif
       wakeup(&ticks);
       release(&tickslock);
     }
@@ -76,6 +80,10 @@ trap(struct trapframe *tf)
     cprintf("cpu%d: spurious interrupt at %x:%x\n",
             cpunum(), tf->cs, tf->eip);
     lapiceoi();
+    break;
+  case T_PGFLT:
+    swapPages(rcr2());
+    proc->faultCount++;
     break;
 
   //PAGEBREAK: 13
