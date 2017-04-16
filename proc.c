@@ -4,15 +4,15 @@
 #include "memlayout.h"
 #include "mmu.h"
 #include "x86.h"
-#include "proc.h"
 #include "spinlock.h"
+#include "proc.h"
 
 struct {
   struct spinlock lock;
   struct proc proc[NPROC];
 } ptable;
 
-static struct proc *initproc;
+static struct proc *initproc; //WARNING: Compiler might whine about this being unused.
 
 int nextpid = 1;
 extern void forkret(void);
@@ -73,6 +73,25 @@ found:
   memset(p->context, 0, sizeof *p->context);
   p->context->eip = (uint)forkret;
 
+  if(p->pid > 2) {
+	//Give this proc's swapfile a name
+    safestrcpy(p->swapFileName, ".page", 6);
+    itoa(p->pid, &p->swapFileName[5]);
+
+    p->pagefile = createSwapFile(p->swapFileName);
+    memset(p->pagefile_offsets, 0x00000000, sizeof(uint) * MAX_PSYC_PAGES);
+    memset(p->memoryPages,      0x00000000, sizeof(uint) * MAX_PSYC_PAGES);
+    memset(p->NfuPageAges,      0x00000000, sizeof(uint) * MAX_PSYC_PAGES);
+	initlock(&(p->memoryLock), "memoryLock"); //For all procs instead of just pid > 2?
+    p->next_to_swap = 0;
+    p->pagesInMemory = 0;
+    p->pagesInSwapFile = 0;
+    p->faultCount = 0;
+    p->swapCount = 0;
+	p->first = 0;
+	p->last = 0;
+  }
+
   return p;
 }
 
@@ -85,7 +104,7 @@ userinit(void)
   extern char _binary_initcode_start[], _binary_initcode_size[];
 
   p = allocproc();
-  
+
   initproc = p;
   if((p->pgdir = setupkvm()) == 0)
     panic("userinit: out of memory?");
@@ -148,6 +167,33 @@ fork(void)
     return -1;
   }
 
+  //Inherit page stats from parent
+  if ((proc != 0) && (proc->pid > 2) && (np->pid > 2) && (proc->pagefile != 0)) {
+    np->pagesInSwapFile = proc->pagesInSwapFile;
+    np->pagesInMemory = proc->pagesInMemory;
+
+    memmove(np->pagefile_offsets,proc->pagefile_offsets, sizeof(uint) * MAX_PSYC_PAGES);
+    memmove(np->memoryPages,proc->memoryPages,sizeof(uint) * MAX_PSYC_PAGES);
+    memmove(np->NfuPageAges,proc->NfuPageAges,sizeof(uint) * MAX_PSYC_PAGES);
+
+    np->next_to_swap = proc->next_to_swap;
+    np->faultCount = 0;
+    np->swapCount = 0;
+	np->first = proc->first;
+	np->last = proc->last;
+
+	//Copy pagefile contents from parent to child. Must be done in chunks, else potential for barf.
+    if ((proc->pagefile != 0) && (np->pagefile != 0)) {
+	  char pagebuffer[1024];
+      for(i = 0; i < MAX_PSYC_PAGES; i++) {
+          if (readSwapFileAtOffset(proc->pagefile, pagebuffer, 1024, i*1024) < 0)
+              panic("fork: unable to read from parent swap file\n");
+          if (writeSwapFileAtOffset(np->pagefile,pagebuffer, 1024, i*1024) < 0)
+              panic("fork: unable to write to child swap file\n");
+      }
+    }
+  }
+
   // Copy process state from p.
   if((np->pgdir = copyuvm(proc->pgdir, proc->sz)) == 0){
     kfree(np->kstack);
@@ -201,6 +247,12 @@ exit(void)
   }
 
   begin_op();
+
+  if(proc->pid > 2)
+  {
+	removeSwapFile(proc->swapFileName);
+  }
+
   iput(proc->cwd);
   end_op();
   proc->cwd = 0;

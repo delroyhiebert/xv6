@@ -33,7 +33,7 @@ OBJS = \
 # TOOLPREFIX = i386-jos-elf
 
 # Using native tools (e.g., on X86 Linux)
-#TOOLPREFIX = 
+#TOOLPREFIX =
 
 # Try to infer the correct TOOLPREFIX if not set
 ifndef TOOLPREFIX
@@ -70,6 +70,10 @@ QEMU = $(shell if which qemu > /dev/null; \
 	echo "*** Is the directory containing the qemu binary in your PATH" 1>&2; \
 	echo "*** or have you tried setting the QEMU variable in Makefile?" 1>&2; \
 	echo "***" 1>&2; exit 1)
+endif
+
+ifndef SELECTION
+SELECTION := FIFO
 endif
 
 CC = $(TOOLPREFIX)gcc
@@ -176,13 +180,15 @@ UPROGS=\
 	_wc\
 	_zombie\
 	_export\
+	_mt\
+	_mymt\
 
 fs.img: mkfs README $(UPROGS)
 	./mkfs fs.img README $(UPROGS)
 
 -include *.d
 
-clean: 
+clean:
 	rm -f *.tex *.dvi *.idx *.aux *.log *.ind *.ilg \
 	*.o *.d *.asm *.sym vectors.S bootblock entryother \
 	initcode initcode.out kernel xv6.img fs.img kernelmemfs mkfs \

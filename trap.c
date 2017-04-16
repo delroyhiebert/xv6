@@ -51,6 +51,20 @@ trap(struct trapframe *tf)
     if(cpunum() == 0){
       acquire(&tickslock);
       ticks++;
+      //TODO: update NFU ages here
+      #ifdef NFU
+	  if(proc->pid > 2){ //Inlined version of updateNfuAges
+		int i;
+		pte_t *pgtab;
+		for(i=0; i < MAX_PSYC_PAGES;i++) {
+		  proc->NfuPageAges[i] >>= 1; //right shift by 1
+		  if ((proc->memoryPages[i] != 0x00000000) && ((pgtab = walkpgdir(proc->pgdir,(char*)proc->memoryPages[i],0)) != 0) && (*pgtab & PTE_A)) {
+			*pgtab &= ~(PTE_A); //clear the bit
+			proc->NfuPageAges[i] |= (1 << 31); //0x80000000 (add 1 to the MSB)
+		  }
+		}
+	  }
+      #endif
       wakeup(&ticks);
       release(&tickslock);
     }
@@ -76,6 +90,54 @@ trap(struct trapframe *tf)
     cprintf("cpu%d: spurious interrupt at %x:%x\n",
             cpunum(), tf->cs, tf->eip);
     lapiceoi();
+    break;
+  case T_PGFLT:
+	//TODO: Check to see if page fault or hard page fault. If soft, call the appropriate page into memory.
+	//uint a = PGROUNDDOWN(rcr2()); //Round down to faulty page address. rcr2 is the cr2 register.
+
+	//This is just normal lazy allocation:
+	//char *mem;
+	//mem = kalloc();
+	//memset(mem, 0, PGSIZE);
+	//mappages(proc->pgdir, (char*)a, PGSIZE, v2p(mem), PTE_W|PTE_U); //Map this new memory to the virtual addr space.
+
+	//PTE_P is present
+	//PTE_U is user page
+	//PTE_W is writable
+	//PTE_A is accessed
+	//PTE_D is dirty
+	//PTE_PG is paged.
+
+	/* Not sure what the hell this person is doing.
+	addr = rcr2();
+    vaddr = &proc->pgdir[PDX(addr)];
+    // cprintf("addr:0x%x vaddr:0x%x PDX:0x%x PTX:0x%x FLAGS:0x%x\n", addr, vaddr, PDX(*vaddr),PTX(*vaddr),PTE_FLAGS(*vaddr)); //TODO delete
+    // cprintf("&PTE_PG:%x &PTE_P:%x\n", (((uint*)PTE_ADDR(P2V(*vaddr)))[PTX(addr)] & PTE_PG), ((((uint*)PTE_ADDR(P2V(*vaddr)))[PTX(addr)] &PTE_P)));
+    if (((int)(*vaddr) & PTE_P) != 0) { // if page table isn't present at page directory -> hard page fault
+      if (((uint*)PTE_ADDR(P2V(*vaddr)))[PTX(addr)] & PTE_PG) { // if the page is in the process's swap file
+        // cprintf("page is in swap file, pid %d, va %p\n", proc->pid, addr); //TODO delete
+        swapPages(PTE_ADDR(addr));
+        ++proc->totalPageFaultCount;
+        return;
+      }
+    }
+    */
+
+// 	acquire(&proc->memoryLock);
+	if(evictPage(proc->pgdir) < 0)
+	{
+#if defined FIFO || NFU
+		cprintf("trap: evication failure");
+#endif
+	}
+	else
+	{
+		//admit(rcr2());
+		admitPage(PGROUNDDOWN(rcr2()));
+	}
+// 	release(&proc->memoryLock);
+
+	proc->faultCount++;
     break;
 
   //PAGEBREAK: 13

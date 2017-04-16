@@ -10,9 +10,6 @@ struct sleeplock;
 struct stat;
 struct superblock;
 
-int add_directory(char *);
-int history(char *, int );
-
 // bio.c
 void            binit(void);
 struct buf*     bread(uint, uint);
@@ -36,6 +33,9 @@ void            fileinit(void);
 int             fileread(struct file*, char*, int n);
 int             filestat(struct file*, struct stat*);
 int             filewrite(struct file*, char*, int n);
+void            setSwapFileOffset(struct file*, uint); //NOTE: Can I factor this out?
+int             readSwapFileAtOffset(struct file*, char*, int, int);
+int             writeSwapFileAtOffset(struct file*, char*, int, int);
 
 // fs.c
 void            readsb(int dev, struct superblock *sb);
@@ -119,6 +119,10 @@ void            userinit(void);
 int             wait(void);
 void            wakeup(void*);
 void            yield(void);
+uint            getOldNfuPage();
+int             addNewPage(uint);
+int             removeSwapFile(char*);
+struct file*    createSwapFile(char* path);
 
 // swtch.S
 void            swtch(struct context**, struct context*);
@@ -146,22 +150,19 @@ char*           safestrcpy(char*, const char*, int);
 int             strlen(const char*);
 int             strncmp(const char*, const char*, uint);
 char*           strncpy(char*, const char*, int);
+int             itoa(int n, char* str);
 
 // syscall.c
-#define DIRECTORY_BUFFER 128
-#define NUM_OF_DIRECTORIES_IN_PATH 10
-
-struct {
-  char directories[NUM_OF_DIRECTORIES_IN_PATH][DIRECTORY_BUFFER];
-  int num_directories;
-} PATH;
-
 int             argint(int, int*);
 int             argptr(int, char**, int);
 int             argstr(int, char**);
 int             fetchint(uint, int*);
 int             fetchstr(uint, char**);
 void            syscall(void);
+
+// sysfile.c
+struct inode* create(char*, short, short, short);
+int isdirempty(struct inode *);
 
 // timer.c
 void            timerinit(void);
@@ -192,7 +193,11 @@ void            switchuvm(struct proc*);
 void            switchkvm(void);
 int             copyout(pde_t*, uint, void*, uint);
 void            clearpteu(pde_t *pgdir, char *uva);
+int             swapPages(uint);
+int             mapSwapPages(pde_t*, void*, uint, int);
+int             updateNfuAges(pde_t*,uint*,uint*);
+int             evictPage(pde_t*);
+int             admitPage(uint);
 
 // number of elements in fixed-size array
 #define NELEM(x) (sizeof(x)/sizeof((x)[0]))
-

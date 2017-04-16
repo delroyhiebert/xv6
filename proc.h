@@ -1,3 +1,5 @@
+#include "spinlock.h"
+
 // Per-CPU state
 struct cpu {
   uchar apicid;                // Local APIC ID
@@ -48,6 +50,14 @@ struct context {
 
 enum procstate { UNUSED, EMBRYO, SLEEPING, RUNNABLE, RUNNING, ZOMBIE };
 
+struct page {
+  uint address;
+  int age;
+};
+
+#define MAX_PSYC_PAGES 15
+#define MAX_TOTAL_PAGES 30
+
 // Per-process state
 struct proc {
   uint sz;                     // Size of process memory (bytes)
@@ -63,7 +73,24 @@ struct proc {
   struct file *ofile[NOFILE];  // Open files
   struct inode *cwd;           // Current directory
   char name[16];               // Process name (debugging)
+
+  //NOTE: Page table will probably need a lock?
+  struct spinlock memoryLock;
+  struct file *pagefile;                  // Pointer to the pagefile on disk.
+  uint pagefile_offsets[MAX_PSYC_PAGES];  // Array of va's. Index of va implies offset into the pagefile.
+  uint memoryPages[MAX_PSYC_PAGES];       // NOTE no idea what this is used for.
+  uint NfuPageAges[MAX_PSYC_PAGES];       // Age of each page in memory. Associative array? NOTE: add this to the real page structure? Where is it?
+  uint next_to_swap;                      // Pointer to next page to swap WARNING: swap in or out? Do I even need this?
+  char swapFileName[21];                  // Name of swap file on disk
+  int pagesInMemory;                      // Number pf pages in RAM
+  int pagesInSwapFile;                    // Number of pages on disk
+  int faultCount;                         // Number of faults that have occured
+  int swapCount;                          // Number of pages swapped
+  uint first, last;                       // Positions on the FIFO ringbuffer.
 };
+
+//Dear gcc, yes this really does get used. Trust me.
+__attribute__((unused)) static struct proc *initproc;
 
 // Process memory is laid out contiguously, low addresses first:
 //   text

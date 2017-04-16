@@ -7,16 +7,6 @@
 #include "mmu.h"
 #include "proc.h"
 
-int sys_history(void) {
-  char *buffer;//Params as dictated by assignment description
-  int historyId;
-
-  argptr(0, &buffer, 1);//xv6 doesn't support parameters on system calls, so this is how we implement that functionality regardless
-  argint(1, &historyId);
-
-  return history(buffer, historyId);
-}
-
 int
 sys_fork(void)
 {

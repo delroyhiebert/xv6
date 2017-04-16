@@ -10,6 +10,8 @@
 extern char data[];  // defined by kernel.ld
 pde_t *kpgdir;  // for use in scheduler()
 
+//int writeSwap(pde_t *); NOTE: why the prototype declaration?
+
 // Set up CPU's kernel segment descriptors.
 // Run once on entry on each CPU.
 void
@@ -163,22 +165,17 @@ switchkvm(void)
 void
 switchuvm(struct proc *p)
 {
-  if(p == 0)
-    panic("switchuvm: no process");
-  if(p->kstack == 0)
-    panic("switchuvm: no kstack");
-  if(p->pgdir == 0)
-    panic("switchuvm: no pgdir");
-
   pushcli();
   cpu->gdt[SEG_TSS] = SEG16(STS_T32A, &cpu->ts, sizeof(cpu->ts)-1, 0);
   cpu->gdt[SEG_TSS].s = 0;
   cpu->ts.ss0 = SEG_KDATA << 3;
-  cpu->ts.esp0 = (uint)p->kstack + KSTACKSIZE;
+  cpu->ts.esp0 = (uint)proc->kstack + KSTACKSIZE;
   // setting IOPL=0 in eflags *and* iomb beyond the tss segment limit
   // forbids I/O instructions (e.g., inb and outb) from user space
   cpu->ts.iomb = (ushort) 0xFFFF;
   ltr(SEG_TSS << 3);
+  if(p->pgdir == 0)
+    panic("switchuvm: no pgdir");
   lcr3(V2P(p->pgdir));  // switch to process's address space
   popcli();
 }
@@ -237,6 +234,10 @@ allocuvm(pde_t *pgdir, uint oldsz, uint newsz)
 
   a = PGROUNDUP(oldsz);
   for(; a < newsz; a += PGSIZE){
+#if defined (NFU) || (FIFO)
+	  if(proc->pagesInMemory >= MAX_PSYC_PAGES)
+		evict(proc->pgdir);
+#endif
     mem = kalloc();
     if(mem == 0){
       cprintf("allocuvm out of memory\n");
@@ -250,6 +251,10 @@ allocuvm(pde_t *pgdir, uint oldsz, uint newsz)
       kfree(mem);
       return 0;
     }
+#if defined (NFU) || (FIFO)
+    addNewPage(PGROUNDDOWN(a));
+#endif
+    proc->pagesInMemory++;
   }
   return newsz;
 }
@@ -271,7 +276,7 @@ deallocuvm(pde_t *pgdir, uint oldsz, uint newsz)
   for(; a  < oldsz; a += PGSIZE){
     pte = walkpgdir(pgdir, (char*)a, 0);
     if(!pte)
-      a = PGADDR(PDX(a) + 1, 0, 0) - PGSIZE;
+      a += (NPTENTRIES - 1) * PGSIZE;
     else if((*pte & PTE_P) != 0){
       pa = PTE_ADDR(*pte);
       if(pa == 0)
@@ -316,36 +321,70 @@ clearpteu(pde_t *pgdir, char *uva)
   *pte &= ~PTE_U;
 }
 
+//NOTE: Seems to be doing ok... I think.
 // Given a parent process's page table, create a copy
 // of it for a child.
-pde_t*
-copyuvm(pde_t *pgdir, uint sz)
+pde_t* copyuvm(pde_t *pageDirectory, uint size)
 {
-  pde_t *d;
-  pte_t *pte;
-  uint pa, i, flags;
-  char *mem;
+	pde_t *pageDirectoryEntry;
+	pte_t *pageTableEntry;
+	uint physicalAddress, i, flags;
+	char *mem;
 
-  if((d = setupkvm()) == 0)
-    return 0;
-  for(i = 0; i < sz; i += PGSIZE){
-    if((pte = walkpgdir(pgdir, (void *) i, 0)) == 0)
-      panic("copyuvm: pte should exist");
-    if(!(*pte & PTE_P))
-      panic("copyuvm: page not present");
-    pa = PTE_ADDR(*pte);
-    flags = PTE_FLAGS(*pte);
-    if((mem = kalloc()) == 0)
-      goto bad;
-    memmove(mem, (char*)P2V(pa), PGSIZE);
-    if(mappages(d, (void*)i, PGSIZE, V2P(mem), flags) < 0)
-      goto bad;
-  }
-  return d;
+	if((pageDirectoryEntry = setupkvm()) == 0)
+	{
+		return 0;
+	}
+	for(i = 0; i < size; i += PGSIZE)
+	{
+		if((pageTableEntry = walkpgdir(pageDirectory, (void *) i, 0)) == 0)
+		{
+			panic("copyuvm: pte should exist");
+		}
+		if(!(*pageTableEntry & PTE_P) && !(*pageTableEntry & PTE_PG))
+		{
+			panic("copyuvm: page not present");
+		}
+		if((*pageTableEntry & PTE_PG) && (*pageTableEntry & PTE_P))
+		{
+			panic("copyuvm: page is both present in memory AND paged at the same time");
+		}
+		if((*pageTableEntry & PTE_P) && !(*pageTableEntry & PTE_PG)) //Present, not paged.
+		{
+			//Original copyuvm meat and potatoes.
+			physicalAddress = PTE_ADDR(*pageTableEntry);
+			flags = PTE_FLAGS(*pageTableEntry);
+			if((mem = kalloc()) == 0)
+			{
+				cprintf("copyuvm: kalloc failure.\n");
+				freevm(pageDirectoryEntry);
+				return 0;
+			}
+			memmove(mem, (char*)P2V(physicalAddress), PGSIZE);
+			if(mappages(pageDirectoryEntry, (void*)i, PGSIZE, V2P(mem), flags) < 0)
+			{
+				cprintf("copyuvm: mappages failure.\n");
+				freevm(pageDirectoryEntry);
+				return 0;
+			}
+		}
+		else if(!(*pageTableEntry & PTE_P) && (*pageTableEntry & PTE_PG)) //Paged, not present
+		{
+			flags = PTE_FLAGS(*pageTableEntry);
+			if(mapSwapPages(pageDirectory, (void*)i, PGSIZE, flags) < 0)
+			{
+				cprintf("copyuvm: mapSwapPages failure.\n");
+				freevm(pageDirectoryEntry);
+				return 0;
+			}
+		}
+		else
+		{
+			panic("copyuvm: Not really sure what when wrong");
+		}
+	}
 
-bad:
-  freevm(d);
-  return 0;
+	return pageDirectoryEntry;
 }
 
 //PAGEBREAK!
@@ -389,10 +428,236 @@ copyout(pde_t *pgdir, uint va, void *p, uint len)
   return 0;
 }
 
-//PAGEBREAK!
-// Blank page.
-//PAGEBREAK!
-// Blank page.
-//PAGEBREAK!
-// Blank page.
+uint getFifoPage()
+{
+	return proc->first;
+}
 
+//No idea how this works.
+uint getOldNfuPage()
+{
+	int i = 0;
+	uint min_val;
+	int min_idx;
+	uint va;
+
+	min_idx = i;
+// 	acquire(&proc->memoryLock);
+	min_val = proc->NfuPageAges[i];
+	for(;i < MAX_PSYC_PAGES;i++)
+	{
+		if ((proc->memoryPages[i] != 0x00000000) && (proc->NfuPageAges[i] < min_val))
+		{
+			min_idx = i;
+			min_val = proc->NfuPageAges[i];
+		}
+	}
+	va = proc->memoryPages[min_idx];
+	proc->memoryPages[min_idx] = 0x00000000;
+// 	acquire(&proc->memoryLock);
+
+	return va;
+}
+
+//Not sure this should even be here. No idea what it does.
+int addNewPage(uint va)
+{
+	int i;
+
+// 	acquire(&proc->memoryLock);
+	for(i = 0; i < MAX_PSYC_PAGES; i++)
+	{
+		if (proc->memoryPages[i] == 0x00000000)
+		{
+			break;
+		}
+	}
+
+	if (i == MAX_PSYC_PAGES)
+	{
+		panic("memory full trying to add to memoryPages\n");
+	}
+
+	proc->memoryPages[i] = va;
+	proc->NfuPageAges[i] = (1 << 31);
+// 	release(&proc->memoryLock);
+	return i;
+}
+
+//or swapFromFile
+int admitPage(uint va)
+{
+	char *mem;
+	pte_t *pte;
+	int i;
+
+	va = PGROUNDDOWN((uint)va);
+// 	acquire(&proc->memoryLock);
+	for (i = 0; i < MAX_PSYC_PAGES; i++)
+	{
+		if (proc->pagefile_offsets[i] == va)
+		{
+			proc->pagefile_offsets[i] = 0x00000000;
+			break;
+		}
+	}
+// 	release(&proc->memoryLock);
+
+	//not found in file
+	if (i == MAX_PSYC_PAGES)
+	{
+		panic("admitPage: target page not found in swap");
+	}
+
+	//pfile_va_arr = proc->pagefile_offsets;
+	//if (pfile_va_arr[i] != 0x00000000)
+	//	panic("change to pagefile_offsets not persistent.");
+
+	//Why the hell is this here? Remove it?
+	if(proc->pagefile_offsets[i] != 0x00000000)
+	{
+		panic("admitPage: change to pagefile_offsets not persistent");
+	}
+
+	setSwapFileOffset(proc->pagefile, ((uint)i * PGSIZE));
+
+	//allocate memory for page
+	mem = kalloc();
+	if(mem == 0)
+	{
+		panic("can't swap from file'\n");
+	}
+	memset(mem, 0, PGSIZE); //zero out the old page. no idea why.
+	pte = walkpgdir(proc->pgdir,(char*)va,0);
+	if (pte == 0)
+	{
+		panic("page table not found");
+	}
+	fileread(proc->pagefile, mem , PGSIZE); //Read from offsets!!! Not just the file.
+	*pte &= 0xFFF; 		//NOTE: magic. why?
+	*pte |= V2P(mem); 	//NOTE: magic. why?
+	*pte &= (~PTE_PG); 	//NOTE: magic. why?
+	*pte |= PTE_P; 		//Adding the present bit.
+	proc->pagesInSwapFile--;
+	proc->pagesInMemory++;
+
+	addNewPage(va); //What? Why?
+
+	return 0;
+}
+
+//or swapToFile
+int evictPage(pde_t *pgdir)
+{
+    uint va_page = 0x00000000;
+    int i;
+    pde_t *pte; //WAT. Why is it named that?! That's wrong?
+
+    // check if not init or shell procces
+    if (!((((proc->pid > 2) && !((proc->name[0] == 's') && (proc->name[1] == 'h') && (proc->name[2] == 0))))))
+	{
+		cprintf("evictPage: Attempted to evict a memory page belonging to init or shell.");
+        return -1;
+	}
+    if (proc->pagesInSwapFile >= MAX_TOTAL_PAGES - MAX_PSYC_PAGES)
+	{
+        panic("evictPage: Swap file is full");
+	}
+
+	#ifdef NFU
+	va_page = getOldNfuPage(); //needs to look at pgdir?
+	#endif
+
+	#ifdef FIFO
+	va_page = getFifoPage(); //needs to look at pgdir?
+	#endif
+
+	#ifdef NONE
+	//va_page = 0x00000000; //Why are you trying to evict a page then?!
+	return -2; //Paging disabled.
+	#endif
+
+    if (va_page == 0x00000000)
+	{
+		//cprintf("Invalid page to remove.\n"); //or NONE is defined.
+        return -1;
+	}
+
+// 	acquire(&(proc->memoryLock));
+    for (i = 0; i < MAX_TOTAL_PAGES; i++) //Need a lock here, I think.
+	{
+        if (proc->pagefile_offsets[i] == 0x00000000) {
+            proc->pagefile_offsets[i] = va_page;
+            break;
+        }
+    }
+//     release(&(proc->memoryLock));
+
+    if (i == MAX_PSYC_PAGES)
+	{
+		panic("swap file is full");
+	}
+
+    //pagefile_offsets = proc->pagefile_offsets;
+    //if (pagefile_offsets[i] != va_page)
+    //    panic("change to pagefile_offsets not persistent.");
+
+	//Why the hell is this here? Remove it?
+	if (proc->pagefile_offsets[i] != va_page)
+	{
+        panic("change to pagefile_offsets not persistent.");
+	}
+
+	//Write selected page to the pagefile.
+    setSwapFileOffset(proc->pagefile, ((uint)i * PGSIZE)); //Why. Bad idea? Unscrew this.
+    filewrite(proc->pagefile, (char *)va_page, PGSIZE); //Not a call to writeAtOffset?
+    proc->swapCount++;
+    proc->pagesInSwapFile++;
+	proc->pagesInMemory--;
+	proc->first = (proc->first + 1)%MAX_PSYC_PAGES; //FIFO
+
+	pte = walkpgdir(pgdir, (char *)va_page, 0); //Why are we making this call?
+    if (pte == 0)
+	{
+        panic("evictPage: ");
+	}
+
+    *pte &= ~PTE_P; //Clear present flag
+    *pte |= PTE_PG; //Add paged flag
+
+    kfree(P2V(PTE_ADDR(*pte))); //Finally, evict the page from memory.
+
+    return 0;
+}
+
+int mapSwapPages(pde_t *pageDirectory, void *virtualAddress, uint size, int permissions)
+{
+    char *address, *last;
+    pte_t *pageTableEntry;
+
+    address = (char*)PGROUNDDOWN((uint)virtualAddress);
+    last = (char*)PGROUNDDOWN(((uint)virtualAddress) + size - 1);
+    for(;;)
+	{
+        if((pageTableEntry = walkpgdir(pageDirectory, address, 1)) == 0)
+		{
+			cprintf("mapSwapPages failed during walkpgdir.\n");
+            return -1;
+		}
+        if((*pageTableEntry & PTE_P) || (*pageTableEntry & PTE_PG))
+		{
+            panic("mapSwapPages: page had both present and paged bits set");
+		}
+
+        *pageTableEntry = permissions | PTE_PG;
+		//*pte = pa | perm | PTE_P; //Prob won't need these later?
+
+        if(address == last)
+		{
+            break;
+		}
+        address += PGSIZE;
+		//pa += PGSIZE; //Prob won't need these later?
+    }
+    return 0;
+}
