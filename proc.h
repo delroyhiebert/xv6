@@ -52,7 +52,7 @@ enum procstate { UNUSED, EMBRYO, SLEEPING, RUNNABLE, RUNNING, ZOMBIE };
 #define MAX_PSYC_PAGES 15
 #define MAX_TOTAL_PAGES 30
 
-struct page 
+struct page
 {
   uint address;
   int age;
@@ -76,13 +76,14 @@ struct proc {
   char name[16];               // Process name (debugging)
 
 
-  struct file *pagefile;             
+  struct file *pagefile;
   uint pagefile_addr[MAX_PSYC_PAGES];
   uint memoryPages[MAX_PSYC_PAGES];
   uint NfuPageAges[MAX_PSYC_PAGES];
   int next_to_swap;
+  uint fifoTimestamps[MAX_PSYC_PAGES];
 
-  char swapFileName[20]; 
+  char swapFileName[20];
   int pagesInMemory;
   int pagesInSwapFile;
   int faultCount;

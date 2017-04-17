@@ -406,12 +406,47 @@ copyout(pde_t *pgdir, uint va, void *p, uint len)
   return 0;
 }
 
+uint getFifoPage()
+{
+	uint youngest = 0xFFFFFFFF;
+	int i;
+	int target = -1;
+	uint va;
+
+	//Find memoryPage with youngest age. Remember it's offset.
+	for(i = 0; i < MAX_PSYC_PAGES; i++)
+	{
+		//0xFFFFFFFF means unused.
+		if((proc->fifoTimestamps[i] != 0xFFFFFFFF) && (proc->fifoTimestamps[i] < youngest))
+		{
+			youngest = proc->fifoTimestamps[i];
+			target = i;
+		}
+	}
+
+	if(target < 0)
+	{
+		//Probably all timestamps were 0xFFFFFFFF
+		panic("getFifoPages: no target was selected. seems like no pages in memoryPages[]?");
+	}
+	if(proc->memoryPages[target] == 0xFFFFFFFF)
+	{
+		//panic("getFifoPages: chose a va of 0xFFFFFFFF");
+	}
+
+	va = proc->memoryPages[target];
+	proc->memoryPages[target] = 0xFFFFFFFF;
+	return va;
+}
+
+
 uint pageToRemove(pde_t *pgdir)
 {
 #ifdef NFU
   return getOldNfuPage();
 #endif
 #ifdef FIFO
+  return getFifoPage();
 #endif
 #ifdef NONE
   return 0xffffffff;

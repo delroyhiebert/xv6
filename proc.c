@@ -81,6 +81,7 @@ found:
     memset(p->pagefile_addr, 0xFFFFFFFF, sizeof(int) * MAX_PSYC_PAGES);
     memset(p->memoryPages, 0xFFFFFFFF, sizeof(int) * MAX_PSYC_PAGES);
     memset(p->NfuPageAges, 0, sizeof(int) * MAX_PSYC_PAGES);
+	memset(p->fifoTimestamps,   0x00000000, sizeof(uint) * MAX_PSYC_PAGES);
     p->next_to_swap = 0;
 
     p->pagesInMemory = 0;
@@ -102,7 +103,7 @@ userinit(void)
   extern char _binary_initcode_start[], _binary_initcode_size[];
 
   p = allocproc();
-  
+
   initproc = p;
   if((p->pgdir = setupkvm()) == 0)
     panic("userinit: out of memory?");
@@ -174,6 +175,7 @@ fork(void)
     memmove(np->pagefile_addr,proc->pagefile_addr, sizeof(uint) * MAX_PSYC_PAGES);
     memmove(np->memoryPages, proc->memoryPages, sizeof(uint) * MAX_PSYC_PAGES);
     memmove(np->NfuPageAges, proc->NfuPageAges, sizeof(uint) * MAX_PSYC_PAGES);
+    memmove(np->fifoTimestamps, proc->fifoTimestamps, sizeof(uint) * MAX_PSYC_PAGES);
 
     np->next_to_swap = proc->next_to_swap;
     np->faultCount = 0;
@@ -564,6 +566,10 @@ int addNewPage(uint va)
 
   if (i == MAX_PSYC_PAGES)
     panic("memory full trying to add to memoryPages\n");
+
+  acquire(&tickslock);
+  proc->fifoTimestamps[i] = ticks;
+  release(&tickslock);
 
   proc->memoryPages[i] = va;
   proc->NfuPageAges[i] = (1 << 31);

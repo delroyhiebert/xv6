@@ -460,12 +460,13 @@ struct file* createSwapFile(char* path)
       iunlockput(ip);
       return (struct file*)-1;
   }
-  iunlock(ip);
+
   f->type = FD_INODE;
   f->ip = ip;
   f->off = 0;
   f->readable = 1;
   f->writable = 1;
+  iunlock(ip);
   end_op();
   return f;
 }
