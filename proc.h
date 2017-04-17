@@ -48,6 +48,17 @@ struct context {
 
 enum procstate { UNUSED, EMBRYO, SLEEPING, RUNNABLE, RUNNING, ZOMBIE };
 
+
+#define MAX_PSYC_PAGES 15
+#define MAX_TOTAL_PAGES 30
+
+struct page
+{
+  uint address;
+  int age;
+};
+
+
 // Per-process state
 struct proc {
   uint sz;                     // Size of process memory (bytes)
@@ -63,7 +74,24 @@ struct proc {
   struct file *ofile[NOFILE];  // Open files
   struct inode *cwd;           // Current directory
   char name[16];               // Process name (debugging)
+
+
+  struct file *pagefile;
+  uint pagefile_addr[MAX_PSYC_PAGES];
+  uint memoryPages[MAX_PSYC_PAGES];
+  uint NfuPageAges[MAX_PSYC_PAGES];
+  int next_to_swap;
+  uint fifoTimestamps[MAX_PSYC_PAGES];
+
+  char swapFileName[20];
+  int pagesInMemory;
+  int pagesInSwapFile;
+  int faultCount;
+  int swapCount;
 };
+
+//gcc complains that it isn't used, but it is...
+__attribute__((unused)) static struct proc *initproc;
 
 // Process memory is laid out contiguously, low addresses first:
 //   text

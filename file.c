@@ -16,6 +16,63 @@ struct {
   struct file file[NFILE];
 } ftable;
 
+void setSwapFileOffset(struct file* f, uint offset)
+{
+  f->off = offset;
+}
+
+int
+readSwapFileAtOffset(struct file *f, char *addr, int n, int offset)
+{
+
+  if(f->readable == 0)
+    return -1;
+  if(f->type == FD_PIPE)
+    return piperead(f->pipe, addr, n);
+  if(f->type == FD_INODE){
+    ilock(f->ip);
+    readi(f->ip, addr, offset, n);
+    iunlock(f->ip);
+    return n;
+  }
+  panic("readSwapFileAtOffset");
+}
+
+int
+writeSwapFileAtOffset(struct file *f, char *addr, int n, int offset)
+{
+    int r;
+
+  if(f->writable == 0)
+    return -1;
+  if(f->type == FD_PIPE)
+    return pipewrite(f->pipe, addr, n);
+  if(f->type == FD_INODE){
+    int max = ((LOGSIZE-1-1-2) / 2) * 512;
+    int i = 0;
+    begin_op();
+    while(i < n){
+      int n1 = n - i;
+      if(n1 > max)
+        n1 = max;
+      
+      ilock(f->ip);
+      if ((r = writei(f->ip, addr + i, offset, n1)) > 0)
+        offset += r;
+      iunlock(f->ip);
+      
+      if(r < 0)
+        break;
+      if(r != n1)
+        panic("short writeSwapFileAtOffset");
+      i += r;
+    }
+    end_op();
+    return i == n ? n : -1;
+  }
+  panic("writeSwapFileAtOffset");
+}
+
 void
 fileinit(void)
 {

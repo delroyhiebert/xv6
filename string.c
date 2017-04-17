@@ -103,3 +103,25 @@ strlen(const char *s)
   return n;
 }
 
+int itoa(int n, char* str)
+{
+    int digit, len, ret;
+    char c;
+
+    len = 0;
+    digit = 0;
+    do {
+        str[digit++] = n % 10 + '0';
+    } while ((n /= 10) > 0);
+    str[digit] = '\0';
+    ret = digit;
+
+    for(digit = 0, len = ret - 1; digit < len; digit++, len--) {
+        c = str[digit];
+        str[digit] = str[len];
+        str[len] = c;
+    }
+
+    return ret;
+}
+

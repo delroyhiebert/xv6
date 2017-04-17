@@ -10,6 +10,8 @@
 extern char data[];  // defined by kernel.ld
 pde_t *kpgdir;  // for use in scheduler()
 
+int writeSwap(pde_t *);
+
 // Set up CPU's kernel segment descriptors.
 // Run once on entry on each CPU.
 void
@@ -237,6 +239,10 @@ allocuvm(pde_t *pgdir, uint oldsz, uint newsz)
 
   a = PGROUNDUP(oldsz);
   for(; a < newsz; a += PGSIZE){
+#if defined (NFU) || (FIFO)
+    if(proc->pagesInMemory >= MAX_PSYC_PAGES)
+      writeSwap(pgdir);
+#endif
     mem = kalloc();
     if(mem == 0){
       cprintf("allocuvm out of memory\n");
@@ -250,6 +256,10 @@ allocuvm(pde_t *pgdir, uint oldsz, uint newsz)
       kfree(mem);
       return 0;
     }
+#if defined (NFU) || (FIFO)
+    addNewPage(PGROUNDDOWN(a));
+#endif
+    proc->pagesInMemory++;
   }
   return newsz;
 }
@@ -323,7 +333,7 @@ copyuvm(pde_t *pgdir, uint sz)
 {
   pde_t *d;
   pte_t *pte;
-  uint pa, i, flags;
+  uint pa, i;
   char *mem;
 
   if((d = setupkvm()) == 0)
@@ -331,19 +341,26 @@ copyuvm(pde_t *pgdir, uint sz)
   for(i = 0; i < sz; i += PGSIZE){
     if((pte = walkpgdir(pgdir, (void *) i, 0)) == 0)
       panic("copyuvm: pte should exist");
-    if(!(*pte & PTE_P))
+    if(!(*pte & PTE_P) && !(*pte & PTE_PG))
       panic("copyuvm: page not present");
-    pa = PTE_ADDR(*pte);
-    flags = PTE_FLAGS(*pte);
-    if((mem = kalloc()) == 0)
-      goto bad;
-    memmove(mem, (char*)P2V(pa), PGSIZE);
-    if(mappages(d, (void*)i, PGSIZE, V2P(mem), flags) < 0)
-      goto bad;
+    if ((*pte & PTE_PG) && (*pte & PTE_P))
+        panic("copyuvm: PTE_PG & PTE_P");
+    if ((*pte & PTE_P) && (!(*pte & PTE_PG))) {
+        pa = PTE_ADDR(*pte);
+        if((mem = kalloc()) == 0)
+            goto bad;
+        memmove(mem, (char*)P2V(pa), PGSIZE);
+        if(mappages(d, (void*)i, PGSIZE, V2P(mem), PTE_W|PTE_U) < 0)
+            goto bad;
+    } else {
+        if (mapSwapPages(d, (void*)i, PGSIZE, PTE_W|PTE_U) < 0)
+            goto bad;
+    }
   }
   return d;
 
 bad:
+  cprintf("Went to bad in copyuvm\n");
   freevm(d);
   return 0;
 }
@@ -387,6 +404,198 @@ copyout(pde_t *pgdir, uint va, void *p, uint len)
     va = va0 + PGSIZE;
   }
   return 0;
+}
+
+uint getFifoPage()
+{
+	uint youngest = 0xFFFFFFFF;
+	int i;
+	int target = -1;
+	uint va;
+
+	//Find memoryPage with youngest age. Remember it's offset.
+	for(i = 0; i < MAX_PSYC_PAGES; i++)
+	{
+		//0xFFFFFFFF means unused.
+		if((proc->fifoTimestamps[i] != 0xFFFFFFFF) && (proc->fifoTimestamps[i] < youngest))
+		{
+			youngest = proc->fifoTimestamps[i];
+			target = i;
+		}
+	}
+
+	if(target < 0)
+	{
+		//Probably all timestamps were 0xFFFFFFFF
+		panic("getFifoPages: no target was selected. seems like no pages in memoryPages[]?");
+	}
+	if(proc->memoryPages[target] == 0xFFFFFFFF)
+	{
+		//panic("getFifoPages: chose a va of 0xFFFFFFFF");
+	}
+
+	va = proc->memoryPages[target];
+	proc->memoryPages[target] = 0xFFFFFFFF;
+	return va;
+}
+
+
+uint pageToRemove(pde_t *pgdir)
+{
+#ifdef NFU
+  return getOldNfuPage();
+#endif
+#ifdef FIFO
+  return getFifoPage();
+#endif
+#ifdef NONE
+  return 0xffffffff;
+#endif
+}
+
+int readSwap(uint va)
+{
+  uint *pfile_va_arr;
+  struct file *f;
+  char *mem;
+  pte_t *pte;
+  int i;
+
+
+  va = PGROUNDDOWN((uint)va);
+  pfile_va_arr = proc->pagefile_addr;
+  for (i = 0; i < MAX_PSYC_PAGES; i++) {
+      if (pfile_va_arr[i] == va) {
+          pfile_va_arr[i] = 0xffffffff;
+          break;
+      }
+  }
+  //not found in file
+  if (i == MAX_PSYC_PAGES)
+      panic("page not in swap");
+
+  pfile_va_arr = proc->pagefile_addr;
+  if (pfile_va_arr[i] != 0xffffffff)
+      panic("change to pagefile_addr not persistent.");
+
+  f = proc->pagefile;
+  setSwapFileOffset(f, ((uint)i * PGSIZE));
+
+  //allocate memory for page
+  mem = kalloc();
+  if(mem == 0){
+      panic("can't swap from file'\n");
+      return 0;
+  }
+  memset(mem, 0, PGSIZE);
+  if ((pte = walkpgdir(proc->pgdir,(char*)va,0)) == 0)
+      panic("page table not found");
+  fileread(f, mem , PGSIZE);
+  *pte &= 0xFFF;
+  *pte |= V2P(mem);
+  *pte &= (~PTE_PG);
+  *pte |= PTE_P;
+  proc->pagesInSwapFile--;
+
+  addNewPage(va);
+  return 0;
+}
+
+int writeSwap(pde_t *pgdir) {
+    uint *pagefile_addr;
+    uint va_page;
+    int i;
+    struct file *f;
+    char* v;
+    pde_t *pte;
+
+    // check if not init or shell procces
+    if (!((((proc->pid > 2) &&
+            !((proc->name[0] == 's') && (proc->name[1] == 'h') &&
+              (proc->name[2] == 0))))))
+        return -1;
+    if (proc->pagesInSwapFile >= MAX_PSYC_PAGES)
+        panic("too many pages used.");
+    if ((va_page = pageToRemove(pgdir)) == 0xffffffff)
+        return -1;
+    pagefile_addr = proc->pagefile_addr;
+    for (i = 0; i < MAX_PSYC_PAGES; i++) {
+        if (pagefile_addr[i] == 0xffffffff) {
+            pagefile_addr[i] = va_page;
+            break;
+        }
+    }
+
+    if (i == MAX_PSYC_PAGES)
+        panic("swap file is full");
+
+    pagefile_addr = proc->pagefile_addr;
+    if (pagefile_addr[i] != va_page)
+        panic("change to pagefile_addr not persistent.");
+
+    f = proc->pagefile;
+    setSwapFileOffset(f, ((uint)i * PGSIZE));
+    //writing page to swap file
+    filewrite(f,(char *) va_page, PGSIZE);
+    proc->swapCount++;
+    proc->pagesInSwapFile++;
+    if ((pte = walkpgdir(pgdir,(char *)va_page,0)) == 0)
+        panic("page to swap problem ");
+    *pte &= ~PTE_P;
+    *pte |= PTE_PG;
+    v = P2V(PTE_ADDR(*pte));
+    kfree(v);     /* free the page */
+
+    return 0;
+}
+
+int swapPages(uint va)
+{
+  pde_t* pde;
+  pde = proc->pgdir;
+  writeSwap(pde);
+  readSwap(va);
+  return 0;
+}
+
+int
+mapSwapPages(pde_t *pgdir, void *va, uint size, int perm)
+{
+    char *a, *last;
+    pte_t *pte;
+
+    a = (char*)PGROUNDDOWN((uint)va);
+    last = (char*)PGROUNDDOWN(((uint)va) + size - 1);
+    for(;;){
+        if((pte = walkpgdir(pgdir, a, 1)) == 0)
+            return -1;
+        if((*pte & PTE_P) || (*pte & PTE_PG))
+            panic("remap");
+
+        *pte = perm | PTE_PG;
+        if(a == last)
+            break;
+        a += PGSIZE;
+    }
+    return 0;
+}
+
+int updateNfuAges(pde_t* pgdir,uint* addr_arry,uint* NfuPageAges)
+{
+    int i;
+    pte_t *pgtab;
+    for(i=0; i < MAX_PSYC_PAGES;i++) {
+        NfuPageAges[i] >>= 1; //right shift by 1
+        if ((addr_arry[i] != 0xffffffff) &&
+            ((pgtab = walkpgdir(pgdir,(char*)addr_arry[i],0)) != 0) &&
+            (*pgtab & PTE_A)) {
+
+            *pgtab &= ~(PTE_A); //clear the bit
+            NfuPageAges[i] |= (1 << 31); //0x80000000 (add 1 to the MSB)
+        }
+    }
+
+    return 0;
 }
 
 //PAGEBREAK!

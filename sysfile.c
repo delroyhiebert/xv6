@@ -441,3 +441,81 @@ sys_pipe(void)
   fd[1] = fd1;
   return 0;
 }
+
+
+struct file* createSwapFile(char* path)
+{
+  int fd;
+  struct inode *ip;
+  struct file *f;
+
+  begin_op();
+  ip = create(path, T_FILE, 0, 0);
+  if(ip == 0)
+      return (struct file*)-1;
+
+  if((f = filealloc()) == 0 || (fd = fdalloc(f)) < 0){
+      if(f)
+          fileclose(f);
+      iunlockput(ip);
+      return (struct file*)-1;
+  }
+
+  f->type = FD_INODE;
+  f->ip = ip;
+  f->off = 0;
+  f->readable = 1;
+  f->writable = 1;
+  iunlock(ip);
+  end_op();
+  return f;
+}
+
+int removeSwapFile(char* file_name)
+{
+  struct inode *ip, *dp;
+  struct dirent de;
+  char name[DIRSIZ], *path;
+  uint off;
+
+  path = file_name;
+  if((dp = nameiparent(path, name)) == 0)
+      return -1;
+  begin_op();
+  ilock(dp);
+
+  if(namecmp(name, ".") == 0 || namecmp(name, "..") == 0)
+      goto bad;
+
+  if((ip = dirlookup(dp, name, &off)) == 0)
+      goto bad;
+  ilock(ip);
+
+  if(ip->nlink < 1)
+      panic("unlink: nlink < 1");
+  if(ip->type == T_DIR && !isdirempty(ip)){
+      iunlockput(ip);
+      goto bad;
+  }
+
+  memset(&de, 0, sizeof(de));
+  if(writei(dp, (char*)&de, off, sizeof(de)) != sizeof(de))
+      panic("unlink: writei");
+  if(ip->type == T_DIR){
+      dp->nlink--;
+      iupdate(dp);
+  }
+  iunlockput(dp);
+
+  ip->nlink--;
+  iupdate(ip);
+  iunlockput(ip);
+
+  end_op();
+  return 0;
+
+bad:
+  iunlockput(dp);
+  end_op();
+  return -1;
+}

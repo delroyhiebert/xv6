@@ -20,6 +20,18 @@ exec(char *path, char **argv)
 
   begin_op();
 
+  memset(proc->pagefile_addr, 0xffffffff, sizeof(int) * MAX_PSYC_PAGES);
+  memset(proc->memoryPages, 0xffffffff, sizeof(int) * MAX_PSYC_PAGES);
+  memset(proc->NfuPageAges, 0, sizeof(int) * MAX_PSYC_PAGES);
+  memset(proc->fifoTimestamps,   0xFFFFFFFF, sizeof(uint) * MAX_PSYC_PAGES);
+  proc->next_to_swap = 0;
+
+  proc->pagesInMemory = 0;
+  proc->pagesInSwapFile = 0;
+
+  proc->faultCount = 0;
+  proc->swapCount = 0;
+
   if((ip = namei(path)) == 0){
     end_op();
     return -1;
