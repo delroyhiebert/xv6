@@ -175,12 +175,11 @@ int readSwapFileAtOffset(struct file *swapFile, char *addr, int n, int offset)
 	{
 		cprintf("readSwapFileAtOffset: Trying to read swap from a pipe.\n");
 		return piperead(swapFile->pipe, addr, n);
-		//return -1; //Just break things instead when you get around to the pairdown?
 	}
 	if(swapFile->type == FD_INODE)
 	{
 		ilock(swapFile->ip);
-		readi(swapFile->ip, addr, offset, n); //n the number of bytes or something?
+		readi(swapFile->ip, addr, offset, n);
 		iunlock(swapFile->ip);
 
 		return n;
@@ -204,15 +203,14 @@ int writeSwapFileAtOffset(struct file *swapFile, char *addr, int n, int offset)
 	{
 		cprintf("writeSwapFileAtOffset: Trying to write swapfile to a pipe.\n");
 		return pipewrite(swapFile->pipe, addr, n);
-		//return -1; //Just break things instead when you get around to the pairdown?
 	}
 
 	if(swapFile->type == FD_INODE)
 	{
-		//No idea what this is, but it's a filewrite knockoff.
+		//Code borrowed from filewrite().
 		int max = ((LOGSIZE-1-1-2) / 2) * 512;
 		int i = 0;
-		begin_op(); //This is not in the same place as filewrite. Also explains the slowness.
+		begin_op(); //This being up here may or may not cause a slowdown.
 		while(i < n)
 		{
 			int n1 = n - i;
@@ -224,7 +222,7 @@ int writeSwapFileAtOffset(struct file *swapFile, char *addr, int n, int offset)
 			ilock(swapFile->ip);
 			if((r = writei(swapFile->ip, addr + i, offset, n1)) > 0)
 			{
-				offset+=r; //WARNING: could also be swapFile->off += r; ?
+				offset+=r; //experiment with this being swapFile->off += r; ?
 			}
 			iunlock(swapFile->ip);
 
@@ -248,7 +246,6 @@ int writeSwapFileAtOffset(struct file *swapFile, char *addr, int n, int offset)
 
 struct file* createSwapFile(char* path)
 {
-	//int fileDescriptor;
 	struct inode *inodePtr;
 	struct file *swapFile;
 
@@ -258,7 +255,7 @@ struct file* createSwapFile(char* path)
 	if(inodePtr == 0)
 	{
 		cprintf("createSwapFile: Failure in createSwapFile, could not create inode.\n");
-		return (struct file*)-1; //Heck, crashing here is fine too.
+		return (struct file*)-1;
 	}
 
 	swapFile = filealloc();
@@ -269,14 +266,6 @@ struct file* createSwapFile(char* path)
 		iunlockput(inodePtr);
 		return (struct file*)-1;
 	}
-
-	//NOTE: pretty sure we don't need this. Leaving this commented out here for later experimentation.
-	// 	fileDescriptor = fdalloc(swapFile);
-	// 	if(fileDescriptor < 0)
-	// 	{
-	// 		cprintf("Failed to allocate a file descriptor in createSwapFile.\n");
-	// 		return (struct file*)-1;
-	// 	}
 
 	swapFile->type = FD_INODE;	//This file is of type inode
 	swapFile->ip = inodePtr; 	//This file is actually just this inode
@@ -289,7 +278,7 @@ struct file* createSwapFile(char* path)
 	return swapFile;
 }
 
-//This is just a sys_unlink knockoff.
+//This is just a recycled version of sys_unlink.
 int removeSwapFile(char* path)
 {
 	struct inode *ip, *dp;
@@ -342,77 +331,3 @@ bad:
   end_op();
   return -1;
 }
-
-//WARNING: this function is bork somehow, even though it's based on sys_unlink.
-// int removeSwapFile(char* fileName)
-// {
-// 	struct inode *inodePtr, *dirPointer;
-// 	struct dirent dirEntry;
-// 	char name[DIRSIZ];// *path;
-// 	uint offset;
-//
-// 	//path = file_name;
-// 	begin_op();
-//
-// 	dirPointer = nameiparent(fileName, name);
-// 	if(dirPointer == 0)
-// 	{
-// 		cprintf("removeSwapFile: Could not name iparent in removeSwapFile.\n");
-// 		return -1;
-// 	}
-// 	ilock(dirPointer);
-//
-// 	if((namecmp(name, ".") == 0) || (namecmp(name, "..") == 0))
-// 	{
-// 		cprintf("removeSwapFile: Attempted to remove a directory instead of swapfile in removeSwapfile.\n");
-// 		iunlockput(dirPointer);
-// 		end_op();
-// 		return -1;
-// 	}
-//
-// 	inodePtr = dirlookup(dirPointer, name, &offset);
-// 	if(inodePtr == 0)
-// 	{
-// 		cprintf("removeSwapFile: dirlookup failed.\n");
-// 		iunlockput(dirPointer);
-// 		end_op();
-// 		return -1;
-// 	}
-// 	ilock(inodePtr);
-//
-// 	if(inodePtr->nlink < 1) //Somehow no pointers to this file.
-// 	{
-// 		panic("removeSwapFile: non-positive number of links to inode.");
-// 	}
-//
-// 	if((inodePtr->type == T_DIR) && (!isdirempty(inodePtr)))
-// 	{
-// 		cprintf("removeSwapFile: Attempted to remove non-emty directory.\n");
-// 		iunlockput(inodePtr);
-// 		iunlockput(dirPointer);
-// 		end_op();
-// 		return -1;
-// 	}
-//
-// 	memset(&dirEntry, 0, sizeof(dirEntry)); //zero out directory entry. WARNING: why?
-//
-// 	if(writei(dirPointer, (char*)&dirEntry, offset, sizeof(dirEntry) != sizeof(dirEntry)))
-// 	{
-// 		panic("removeSwapFile: writei unlinking failed.");
-// 	}
-// 	if(inodePtr->type == T_DIR) //Should probably break things instead of running "fine", but just to smooth things over just in case...
-// 	{
-// 		cprintf("removeSwapFile: Why are you calling removeSwapFile on a directory?\n");
-// 		dirPointer->nlink--; //Indicate that this directory has one less pointer to it.
-// 		iupdate(dirPointer); //Flush modifications to disk.
-// 	}
-//
-// 	iunlockput(dirPointer); //Done directory related modifications.
-// 	inodePtr->nlink--; //Indicate that this inode has one less pointer to it.
-// 	iupdate(inodePtr); //Flush modifications to disk.
-// 	iunlockput(inodePtr); //Done file/data related modifications.
-//
-// 	end_op(); //Commit transactions
-//
-// 	return 0;
-// }

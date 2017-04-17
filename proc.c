@@ -83,7 +83,6 @@ found:
     memset(p->memoryPages,      0x00000000, sizeof(uint) * MAX_PSYC_PAGES);
     memset(p->NfuPageAges,      0x00000000, sizeof(uint) * MAX_PSYC_PAGES);
 	memset(p->fifoTimestamps,   0x00000000, sizeof(uint) * MAX_PSYC_PAGES);
-	initlock(&(p->memoryLock), "memoryLock"); //For all procs instead of just pid > 2?
     p->next_to_swap = 0;
     p->pagesInMemory = 0;
     p->pagesInSwapFile = 0;

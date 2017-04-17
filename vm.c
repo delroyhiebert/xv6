@@ -10,8 +10,6 @@
 extern char data[];  // defined by kernel.ld
 pde_t *kpgdir;  // for use in scheduler()
 
-//int writeSwap(pde_t *); NOTE: why the prototype declaration?
-
 // Set up CPU's kernel segment descriptors.
 // Run once on entry on each CPU.
 void
@@ -321,7 +319,6 @@ clearpteu(pde_t *pgdir, char *uva)
   *pte &= ~PTE_U;
 }
 
-//NOTE: Seems to be doing ok... I think.
 // Given a parent process's page table, create a copy
 // of it for a child.
 pde_t* copyuvm(pde_t *pageDirectory, uint size)
@@ -461,7 +458,6 @@ uint getFifoPage()
 	return proc->memoryPages[target];
 }
 
-//No idea how this works.
 uint getOldNfuPage()
 {
 	int i = 0;
@@ -470,7 +466,6 @@ uint getOldNfuPage()
 	uint va;
 
 	min_idx = i;
-// 	acquire(&proc->memoryLock);
 	min_val = proc->NfuPageAges[i];
 	for(;i < MAX_PSYC_PAGES;i++)
 	{
@@ -482,17 +477,14 @@ uint getOldNfuPage()
 	}
 	va = proc->memoryPages[min_idx];
 	proc->memoryPages[min_idx] = 0x00000000;
-// 	acquire(&proc->memoryLock);
 
 	return va;
 }
 
-//Not sure this should even be here. No idea what it does.
 int addNewPage(uint va)
 {
 	int i;
 
-// 	acquire(&proc->memoryLock);
 	for(i = 0; i < MAX_PSYC_PAGES; i++)
 	{
 		if (proc->memoryPages[i] == 0x00000000)
@@ -512,11 +504,9 @@ int addNewPage(uint va)
 
 	proc->memoryPages[i] = va;
 	proc->NfuPageAges[i] = (1 << 31);
-// 	release(&proc->memoryLock);
 	return i;
 }
 
-//or swapFromFile
 int admitPage(uint va)
 {
 	char *mem;
@@ -524,7 +514,6 @@ int admitPage(uint va)
 	int i;
 
 	va = PGROUNDDOWN((uint)va);
-// 	acquire(&proc->memoryLock);
 	for (i = 0; i < MAX_PSYC_PAGES; i++)
 	{
 		if (proc->pagefile_offsets[i] == va)
@@ -533,22 +522,11 @@ int admitPage(uint va)
 			break;
 		}
 	}
-// 	release(&proc->memoryLock);
 
 	//not found in file
 	if (i == MAX_PSYC_PAGES)
 	{
 		panic("admitPage: target page not found in swap");
-	}
-
-	//pfile_va_arr = proc->pagefile_offsets;
-	//if (pfile_va_arr[i] != 0x00000000)
-	//	panic("change to pagefile_offsets not persistent.");
-
-	//Why the hell is this here? Remove it?
-	if(proc->pagefile_offsets[i] != 0x00000000)
-	{
-		panic("admitPage: change to pagefile_offsets not persistent");
 	}
 
 	setSwapFileOffset(proc->pagefile, ((uint)i * PGSIZE));
@@ -559,31 +537,30 @@ int admitPage(uint va)
 	{
 		panic("can't swap from file'\n");
 	}
-	memset(mem, 0, PGSIZE); //zero out the old page. no idea why.
+	memset(mem, 0, PGSIZE);
 	pte = walkpgdir(proc->pgdir,(char*)va,0);
 	if (pte == 0)
 	{
 		panic("page table not found");
 	}
-	fileread(proc->pagefile, mem , PGSIZE); //Read from offsets!!! Not just the file.
-	*pte &= 0xFFF; 		//NOTE: magic. why?
-	*pte |= V2P(mem); 	//NOTE: magic. why?
-	*pte &= (~PTE_PG); 	//NOTE: magic. why?
-	*pte |= PTE_P; 		//Adding the present bit.
+	fileread(proc->pagefile, mem , PGSIZE);
+	*pte &= 0xFFF;
+	*pte |= V2P(mem);
+	*pte &= (~PTE_PG);
+	*pte |= PTE_P;
 	proc->pagesInSwapFile--;
 	proc->pagesInMemory++;
 
-	addNewPage(va); //What? Why?
+	addNewPage(va);
 
 	return 0;
 }
 
-//or swapToFile
 int evictPage(pde_t *pgdir)
 {
     uint va_page = 0x00000000;
     int i;
-    pde_t *pte; //WAT. Why is it named that?! That's wrong?
+    pde_t *pte;
 
     // check if not init or shell procces
     if (!((((proc->pid > 2) && !((proc->name[0] == 's') && (proc->name[1] == 'h') && (proc->name[2] == 0))))))
@@ -591,63 +568,49 @@ int evictPage(pde_t *pgdir)
 		cprintf("evictPage: Attempted to evict a memory page belonging to init or shell.");
         return -1;
 	}
-    if (proc->pagesInSwapFile >= MAX_TOTAL_PAGES - MAX_PSYC_PAGES)
+    if (proc->pagesInSwapFile > MAX_TOTAL_PAGES - MAX_PSYC_PAGES)
 	{
         panic("evictPage: Swap file is full");
 	}
 
 	#ifdef NFU
-	va_page = getOldNfuPage(); //needs to look at pgdir?
+	va_page = getOldNfuPage();
 	#endif
 
 	#ifdef FIFO
-	va_page = getFifoPage(); //needs to look at pgdir?
+	va_page = getFifoPage();
 	#endif
 
 	#ifdef NONE
-	//va_page = 0x00000000; //Why are you trying to evict a page then?!
 	return -2; //Paging disabled.
 	#endif
 
     if (va_page == 0x00000000)
 	{
-		//cprintf("Invalid page to remove.\n"); //or NONE is defined.
         return -1;
 	}
 
-// 	acquire(&(proc->memoryLock));
-    for (i = 0; i < MAX_TOTAL_PAGES; i++) //Need a lock here, I think.
+    for (i = 0; i < MAX_TOTAL_PAGES; i++)
 	{
         if (proc->pagefile_offsets[i] == 0x00000000) {
             proc->pagefile_offsets[i] = va_page;
             break;
         }
     }
-//     release(&(proc->memoryLock));
 
     if (i == MAX_PSYC_PAGES)
 	{
 		panic("swap file is full");
 	}
 
-    //pagefile_offsets = proc->pagefile_offsets;
-    //if (pagefile_offsets[i] != va_page)
-    //    panic("change to pagefile_offsets not persistent.");
-
-	//Why the hell is this here? Remove it?
-	if (proc->pagefile_offsets[i] != va_page)
-	{
-        panic("change to pagefile_offsets not persistent.");
-	}
-
 	//Write selected page to the pagefile.
-    setSwapFileOffset(proc->pagefile, ((uint)i * PGSIZE)); //Why. Bad idea? Unscrew this.
-    filewrite(proc->pagefile, (char *)va_page, PGSIZE); //Not a call to writeAtOffset?
+    setSwapFileOffset(proc->pagefile, ((uint)i * PGSIZE));
+    filewrite(proc->pagefile, (char *)va_page, PGSIZE);
     proc->swapCount++;
     proc->pagesInSwapFile++;
 	proc->pagesInMemory--;
 
-	pte = walkpgdir(pgdir, (char *)va_page, 0); //Why are we making this call?
+	pte = walkpgdir(pgdir, (char *)va_page, 0);
     if (pte == 0)
 	{
         panic("evictPage: ");
@@ -681,14 +644,12 @@ int mapSwapPages(pde_t *pageDirectory, void *virtualAddress, uint size, int perm
 		}
 
         *pageTableEntry = permissions | PTE_PG;
-		//*pte = pa | perm | PTE_P; //Prob won't need these later?
 
         if(address == last)
 		{
             break;
 		}
         address += PGSIZE;
-		//pa += PGSIZE; //Prob won't need these later?
     }
     return 0;
 }

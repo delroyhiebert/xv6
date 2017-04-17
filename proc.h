@@ -50,11 +50,6 @@ struct context {
 
 enum procstate { UNUSED, EMBRYO, SLEEPING, RUNNABLE, RUNNING, ZOMBIE };
 
-struct page {
-  uint address;
-  int age;
-};
-
 #define MAX_PSYC_PAGES 15
 #define MAX_TOTAL_PAGES 30
 
@@ -78,9 +73,9 @@ struct proc {
   struct spinlock memoryLock;
   struct file *pagefile;                  // Pointer to the pagefile on disk.
   uint pagefile_offsets[MAX_PSYC_PAGES];  // Array of va's. Index of va implies offset into the pagefile.
-  uint memoryPages[MAX_PSYC_PAGES];       // NOTE no idea what this is used for.
-  uint NfuPageAges[MAX_PSYC_PAGES];       // Age of each page in memory. Associative array? NOTE: add this to the real page structure? Where is it?
-  uint next_to_swap;                      // Pointer to next page to swap WARNING: swap in or out? Do I even need this?
+  uint memoryPages[MAX_PSYC_PAGES];       //
+  uint NfuPageAges[MAX_PSYC_PAGES];       // Age of each page in memory. Associative array?
+  uint next_to_swap;                      //
   char swapFileName[21];                  // Name of swap file on disk
   int pagesInMemory;                      // Number pf pages in RAM
   int pagesInSwapFile;                    // Number of pages on disk

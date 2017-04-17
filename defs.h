@@ -33,7 +33,7 @@ void            fileinit(void);
 int             fileread(struct file*, char*, int n);
 int             filestat(struct file*, struct stat*);
 int             filewrite(struct file*, char*, int n);
-void            setSwapFileOffset(struct file*, uint); //NOTE: Can I factor this out?
+void            setSwapFileOffset(struct file*, uint);
 int             readSwapFileAtOffset(struct file*, char*, int, int);
 int             writeSwapFileAtOffset(struct file*, char*, int, int);
 
