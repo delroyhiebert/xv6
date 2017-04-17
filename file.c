@@ -222,7 +222,7 @@ int writeSwapFileAtOffset(struct file *swapFile, char *addr, int n, int offset)
 			ilock(swapFile->ip);
 			if((r = writei(swapFile->ip, addr + i, offset, n1)) > 0)
 			{
-				offset+=r; //experiment with this being swapFile->off += r; ?
+				offset+=r;
 			}
 			iunlock(swapFile->ip);
 
