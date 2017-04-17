@@ -98,6 +98,7 @@ exec(char *path, char **argv)
   memset(proc->pagefile_offsets, 0x00000000, sizeof(uint) * MAX_PSYC_PAGES);
   memset(proc->memoryPages,      0x00000000, sizeof(uint) * MAX_PSYC_PAGES);
   memset(proc->NfuPageAges,      0x00000000, sizeof(uint) * MAX_PSYC_PAGES);
+  memset(proc->fifoTimestamps,   0x00000000, sizeof(uint) * MAX_PSYC_PAGES);
   proc->next_to_swap = 0;
   proc->pagesInMemory = 0;
   proc->pagesInSwapFile = 0;

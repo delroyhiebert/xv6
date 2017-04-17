@@ -86,7 +86,7 @@ struct proc {
   int pagesInSwapFile;                    // Number of pages on disk
   int faultCount;                         // Number of faults that have occured
   int swapCount;                          // Number of pages swapped
-  uint first, last;                       // Positions on the FIFO ringbuffer.
+  uint fifoTimestamps[MAX_PSYC_PAGES];    // Ages for FIFO algorithm. Stamped with tick numbers. Associative array with memoryPages.
 };
 
 //Dear gcc, yes this really does get used. Trust me.

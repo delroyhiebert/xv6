@@ -82,14 +82,13 @@ found:
     memset(p->pagefile_offsets, 0x00000000, sizeof(uint) * MAX_PSYC_PAGES);
     memset(p->memoryPages,      0x00000000, sizeof(uint) * MAX_PSYC_PAGES);
     memset(p->NfuPageAges,      0x00000000, sizeof(uint) * MAX_PSYC_PAGES);
+	memset(p->fifoTimestamps,   0x00000000, sizeof(uint) * MAX_PSYC_PAGES);
 	initlock(&(p->memoryLock), "memoryLock"); //For all procs instead of just pid > 2?
     p->next_to_swap = 0;
     p->pagesInMemory = 0;
     p->pagesInSwapFile = 0;
     p->faultCount = 0;
     p->swapCount = 0;
-	p->first = 0;
-	p->last = 0;
   }
 
   return p;
@@ -175,12 +174,11 @@ fork(void)
     memmove(np->pagefile_offsets,proc->pagefile_offsets, sizeof(uint) * MAX_PSYC_PAGES);
     memmove(np->memoryPages,proc->memoryPages,sizeof(uint) * MAX_PSYC_PAGES);
     memmove(np->NfuPageAges,proc->NfuPageAges,sizeof(uint) * MAX_PSYC_PAGES);
+	memmove(np->fifoTimestamps, proc->fifoTimestamps, sizeof(uint) * MAX_PSYC_PAGES);
 
     np->next_to_swap = proc->next_to_swap;
     np->faultCount = 0;
     np->swapCount = 0;
-	np->first = proc->first;
-	np->last = proc->last;
 
 	//Copy pagefile contents from parent to child. Must be done in chunks, else potential for barf.
     if ((proc->pagefile != 0) && (np->pagefile != 0)) {

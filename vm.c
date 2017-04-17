@@ -428,9 +428,37 @@ copyout(pde_t *pgdir, uint va, void *p, uint len)
   return 0;
 }
 
+//All memoryPages need to get a timestamp placed in the same offset in the array named fifoTimestamps.
+//This just finds the youngest (First In) memoryPage.
+//Returns the va to evict.
 uint getFifoPage()
 {
-	return proc->first;
+	uint youngest = 0xFFFFFFFF;
+	int i;
+	int target = -1;
+
+	//Find memoryPage with youngest age. Remember it's offset.
+	for(i = 0; i < MAX_PSYC_PAGES; i++)
+	{
+		//0x00000000 means unused.
+		if((proc->fifoTimestamps[i] != 0x00000000) && (proc->fifoTimestamps[i] < youngest))
+		{
+			youngest = proc->fifoTimestamps[i];
+			target = i;
+		}
+	}
+
+	if(target < 0)
+	{
+		//Probably all timestamps were 0x00000000
+		panic("getFifoPages: no target was selected. seems like no pages in memoryPages[]?");
+	}
+	if(proc->memoryPages[target] == 0x00000000)
+	{
+		panic("getFifoPages: chose a va of 0x00000000");
+	}
+
+	return proc->memoryPages[target];
 }
 
 //No idea how this works.
@@ -477,6 +505,10 @@ int addNewPage(uint va)
 	{
 		panic("memory full trying to add to memoryPages\n");
 	}
+
+	acquire(&tickslock);
+	proc->fifoTimestamps[i] = ticks;
+	release(&tickslock);
 
 	proc->memoryPages[i] = va;
 	proc->NfuPageAges[i] = (1 << 31);
@@ -614,7 +646,6 @@ int evictPage(pde_t *pgdir)
     proc->swapCount++;
     proc->pagesInSwapFile++;
 	proc->pagesInMemory--;
-	proc->first = (proc->first + 1)%MAX_PSYC_PAGES; //FIFO
 
 	pte = walkpgdir(pgdir, (char *)va_page, 0); //Why are we making this call?
     if (pte == 0)
