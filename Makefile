@@ -130,8 +130,8 @@ kernel: $(OBJS) entry.o entryother initcode kernel.ld
 # great for testing the kernel on real hardware without
 # needing a scratch disk.
 MEMFSOBJS = $(filter-out ide.o,$(OBJS)) memide.o
-kernelmemfs: $(MEMFSOBJS) entry.o entryother initcode kernel.ld fs.img
-	$(LD) $(LDFLAGS) -T kernel.ld -o kernelmemfs entry.o  $(MEMFSOBJS) -b binary initcode entryother fs.img
+kernelmemfs: $(MEMFSOBJS) entry.o entryother initcode kernel.ld fs.img swap.img
+	$(LD) $(LDFLAGS) -T kernel.ld -o kernelmemfs entry.o  $(MEMFSOBJS) -b binary initcode entryother fs.img -b binary initcode entryother swap.img
 	$(OBJDUMP) -S kernelmemfs > kernelmemfs.asm
 	$(OBJDUMP) -t kernelmemfs | sed '1,/SYMBOL TABLE/d; s/ .* / /; /^$$/d' > kernelmemfs.sym
 
@@ -181,24 +181,10 @@ UPROGS=\
 	_zombie\
 	_myMemTest\
 
-SPROGS=\
-	_cat\
-	_echo\
-	_grep\
-	_init\
-	_kill\
-	_ln\
-	_ls\
-	_rm\
-	_sh\
-	_stressfs\
-	_wc\
-	_zombie\
-
 fs.img: mkfs README $(UPROGS)
 	./mkfs fs.img README $(UPROGS)
-swap.img: mkfs README $(SPROGS)
-	./mkfs swap.img README $(SPROGS)
+swap.img: mkfs README $(UPROGS)
+	./mkfs swap.img README $(UPROGS)
 
 -include *.d
 
@@ -234,7 +220,7 @@ QEMUGDB = $(shell if $(QEMU) -help | grep -q '^-gdb'; \
 ifndef CPUS
 CPUS := 1
 endif
-QEMUOPTS = -drive file=swap.img,index=1,media=disk,format=raw -drive file=fs.img,index=2,media=disk,format=raw -drive file=xv6.img,index=0,media=disk,format=raw -smp $(CPUS) -m 512 $(QEMUEXTRA)
+QEMUOPTS = -drive file=swap.img,index=2,media=disk,format=raw -drive file=fs.img,index=1,media=disk,format=raw -drive file=xv6.img,index=0,media=disk,format=raw -smp $(CPUS) -m 512 $(QEMUEXTRA)
 
 qemu: swap.img fs.img xv6.img
 	$(QEMU) -serial mon:stdio $(QEMUOPTS)
