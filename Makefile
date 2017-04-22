@@ -88,7 +88,7 @@ ASFLAGS = -m32 -gdwarf-2 -Wa,-divide
 # FreeBSD ld wants ``elf_i386_fbsd''
 LDFLAGS += -m $(shell $(LD) -V | grep elf_i386 2>/dev/null | head -n 1)
 
-xv6.img: bootblock kernel fs.img
+xv6.img: bootblock kernel fs.img swap.img
 	dd if=/dev/zero of=xv6.img count=10000
 	dd if=bootblock of=xv6.img conv=notrunc
 	dd if=kernel of=xv6.img seek=1 conv=notrunc
@@ -181,15 +181,31 @@ UPROGS=\
 	_zombie\
 	_myMemTest\
 
+SPROGS=\
+	_cat\
+	_echo\
+	_grep\
+	_init\
+	_kill\
+	_ln\
+	_ls\
+	_rm\
+	_sh\
+	_stressfs\
+	_wc\
+	_zombie\
+
 fs.img: mkfs README $(UPROGS)
 	./mkfs fs.img README $(UPROGS)
+swap.img: mkfs README $(SPROGS)
+	./mkfs swap.img README $(SPROGS)
 
 -include *.d
 
 clean: 
 	rm -f *.tex *.dvi *.idx *.aux *.log *.ind *.ilg \
 	*.o *.d *.asm *.sym vectors.S bootblock entryother \
-	initcode initcode.out kernel xv6.img fs.img kernelmemfs mkfs \
+	initcode initcode.out kernel xv6.img fs.img swap.img kernelmemfs mkfs \
 	.gdbinit \
 	$(UPROGS)
 
@@ -218,9 +234,9 @@ QEMUGDB = $(shell if $(QEMU) -help | grep -q '^-gdb'; \
 ifndef CPUS
 CPUS := 1
 endif
-QEMUOPTS = -drive file=fs.img,index=1,media=disk,format=raw -drive file=xv6.img,index=0,media=disk,format=raw -smp $(CPUS) -m 512 $(QEMUEXTRA)
+QEMUOPTS = -drive file=swap.img,index=1,media=disk,format=raw -drive file=fs.img,index=2,media=disk,format=raw -drive file=xv6.img,index=0,media=disk,format=raw -smp $(CPUS) -m 512 $(QEMUEXTRA)
 
-qemu: fs.img xv6.img
+qemu: swap.img fs.img xv6.img
 	$(QEMU) -serial mon:stdio $(QEMUOPTS)
 
 qemu-memfs: xv6memfs.img
