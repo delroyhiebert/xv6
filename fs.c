@@ -25,7 +25,7 @@
 static void itrunc(struct inode*);
 // there should be one superblock per disk device, but we run with
 // only one device
-struct superblock sb; 
+struct superblock sb;
 
 // Read the super block.
 void
@@ -164,17 +164,23 @@ void
 iinit(int dev)
 {
   int i = 0;
-  
+
   initlock(&icache.lock, "icache");
   for(i = 0; i < NINODE; i++) {
     initsleeplock(&icache.inode[i].lock, "inode");
   }
-  
+
   readsb(dev, &sb);
-  cprintf("sb: size %d nblocks %d ninodes %d nlog %d logstart %d\
- inodestart %d bmap start %d\n", sb.size, sb.nblocks,
-          sb.ninodes, sb.nlog, sb.logstart, sb.inodestart,
-          sb.bmapstart);
+  cprintf("\n[BOOT] Superblock:\n");
+  cprintf("[BOOT] Size of file system:                 %d\n", sb.size);
+  cprintf("[BOOT] Number of data blocks:               %d\n", sb.nblocks);
+  cprintf("[BOOT] Number of inodes                     %d\n", sb.ninodes);
+  cprintf("[BOOT] Number of log blocks                 %d\n", sb.nlog);
+  cprintf("[BOOT] Number of swap blocks                %d\n", sb.swapblocks);
+  cprintf("[BOOT] Block number of first log block      %d\n", sb.logstart);
+  cprintf("[BOOT] Block number of first inode block    %d\n", sb.inodestart);
+  cprintf("[BOOT] Block number of first swap block     %d\n", sb.swapstart);
+  cprintf("[BOOT] Block number of first free map block %d\n\n", sb.bmapstart);
 }
 
 static struct inode* iget(uint dev, uint inum);

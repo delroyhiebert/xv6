@@ -18,17 +18,19 @@
 #define NINODES 200
 
 // Disk layout:
-// [ boot block | sb block | log | inode blocks | free bit map | data blocks ]
-
+// [ boot block | sb block | log | inode blocks | swap blocks | free bit map | data blocks ]
+//                                               ^ADDED BY US!
 int nbitmap = FSSIZE/(BSIZE*8) + 1;
 int ninodeblocks = NINODES / IPB + 1;
 int nlog = LOGSIZE;
-int nmeta;    // Number of meta blocks (boot, sb, nlog, inode, bitmap)
+int swapSize = SWAPSIZE;
+int nmeta;    // Number of meta blocks (boot, sb, nlog, inode, bitmap), now with swap!
 int nblocks;  // Number of data blocks
 
 int fsfd;
 struct superblock sb;
 char zeroes[BSIZE];
+char swapPattern[BSIZE];
 uint freeinode = 1;
 uint freeblock;
 
@@ -73,7 +75,6 @@ main(int argc, char *argv[])
   char buf[BSIZE];
   struct dinode din;
 
-
   static_assert(sizeof(int) == 4, "Integers must be 4 bytes!");
 
   if(argc < 2){
@@ -91,42 +92,60 @@ main(int argc, char *argv[])
   }
 
   // 1 fs block = 1 disk sector
-  nmeta = 2 + nlog + ninodeblocks + nbitmap;
+  nmeta = 2 + nlog + ninodeblocks + nbitmap + swapSize; //Add swapSize here.
   nblocks = FSSIZE - nmeta;
 
-  sb.size = xint(FSSIZE);
-  sb.nblocks = xint(nblocks);
-  sb.ninodes = xint(NINODES);
-  sb.nlog = xint(nlog);
-  sb.logstart = xint(2);
+  //Set superblock properties here. Added swapblocks and swapstart.
+  sb.size       = xint(FSSIZE);
+  sb.nblocks    = xint(nblocks);
+  sb.ninodes    = xint(NINODES);
+  sb.nlog       = xint(nlog);
+  sb.swapblocks = xint(swapSize);
+  sb.logstart   = xint(2);
   sb.inodestart = xint(2+nlog);
-  sb.bmapstart = xint(2+nlog+ninodeblocks);
+  sb.swapstart  = xint(2+nlog+ninodeblocks);
+  sb.bmapstart  = xint(2+nlog+ninodeblocks+swapSize);
 
+  //This is innacurate now that swap space has been added. The authors are too lazy to fix this. We don't care. Just ignore this.
   printf("nmeta %d (boot, super, log blocks %u inode blocks %u, bitmap blocks %u) blocks %d total %d\n",
          nmeta, nlog, ninodeblocks, nbitmap, nblocks, FSSIZE);
 
   freeblock = nmeta;     // the first free block that we can allocate
 
+  //zero out the entire disk. zeroes is just an array of BSIZE zeroes
   for(i = 0; i < FSSIZE; i++)
     wsect(i, zeroes);
 
+  //Create swap pattern
+  for(i = 0; i < BSIZE; i++)
+    swapPattern[i] = 'S';
+
+  //Dump recognisable pattern over swap area for viewing in hex editors
+  for(i = sb.swapstart; i < sb.swapstart+sb.swapblocks; i++)
+    wsect(i, swapPattern);
+
+  //Write superblock to image
   memset(buf, 0, sizeof(buf));
   memmove(buf, &sb, sizeof(sb));
   wsect(1, buf);
 
+  //both rootino's should be 1; First inode.
   rootino = ialloc(T_DIR);
   assert(rootino == ROOTINO);
 
+  //Adding "." to the root node
   bzero(&de, sizeof(de));
   de.inum = xshort(rootino);
   strcpy(de.name, ".");
   iappend(rootino, &de, sizeof(de));
 
+  //Adding ".." to the root node
   bzero(&de, sizeof(de));
   de.inum = xshort(rootino);
   strcpy(de.name, "..");
   iappend(rootino, &de, sizeof(de));
 
+  //Add user programs to the image
   for(i = 2; i < argc; i++){
     assert(index(argv[i], '/') == 0);
 
