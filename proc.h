@@ -58,6 +58,9 @@ struct page
   int age;
 };
 
+#define MAX_PAGES 30
+#define MAX_SWAP_PAGES (MAX_PAGES/2)
+#define MAX_RAM_PAGES (MAX_PAGES/2)
 
 // Per-process state
 struct proc {
@@ -75,17 +78,21 @@ struct proc {
   struct inode *cwd;           // Current directory
   char name[16];               // Process name (debugging)
 
+  int swap_page_numbers[MAX_SWAP_PAGES]; //Associative with swap_stored_va
+  int swap_stored_va[MAX_SWAP_PAGES]; //Associative with swap_page_numbers
+  int ram_pages[MAX_RAM_PAGES];
+  int pagesInSwap;
 
-  struct file *pagefile;
-  uint pagefile_addr[MAX_PSYC_PAGES];
-  uint memoryPages[MAX_PSYC_PAGES];
-  uint NfuPageAges[MAX_PSYC_PAGES];
-  int next_to_swap;
-  uint fifoTimestamps[MAX_PSYC_PAGES];
+//   struct file *pagefile; //remove
+//   uint pagefile_addr[MAX_PSYC_PAGES]; //remove
+//   uint memoryPages[MAX_PSYC_PAGES]; //remove
+  uint NfuPageAges[MAX_RAM_PAGES];
+//   int next_to_swap; //remove
+  uint fifoTimestamps[MAX_RAM_PAGES];
 
-  char swapFileName[20];
+//   char swapFileName[20]; //remove
   int pagesInMemory;
-  int pagesInSwapFile;
+//   int pagesInSwapFile;
   int faultCount;
   int swapCount;
 };

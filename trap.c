@@ -53,7 +53,7 @@ trap(struct trapframe *tf)
       ticks++;
 #ifdef NFU
       if((proc != 0) && (proc != initproc)&& (proc->pid > 2))
-        updateNfuAges(proc->pgdir,proc->memoryPages,proc->NfuPageAges);
+        updateNfuAges(proc->pgdir,proc->ram_pages,proc->NfuPageAges);
 #endif
       wakeup(&ticks);
       release(&tickslock);
@@ -82,7 +82,18 @@ trap(struct trapframe *tf)
     lapiceoi();
     break;
   case T_PGFLT:
-    swapPages(rcr2());
+//     swapPages(rcr2());
+
+	//Maybe we for sure don't need to swap? Difference between soft and hard pagefault?
+	if(evict(proc->pgdir) < 0)
+	{
+		cprintf("[X] trap: failed to page.\n");
+	}
+	else
+	{
+		admit(rcr2());
+	}
+
     proc->faultCount++;
     break;
 

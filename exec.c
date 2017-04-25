@@ -20,15 +20,21 @@ exec(char *path, char **argv)
 
   begin_op();
 
-  memset(proc->pagefile_addr, 0xffffffff, sizeof(int) * MAX_PSYC_PAGES);
-  memset(proc->memoryPages, 0xffffffff, sizeof(int) * MAX_PSYC_PAGES);
-  memset(proc->NfuPageAges, 0, sizeof(int) * MAX_PSYC_PAGES);
-  memset(proc->fifoTimestamps,   0xFFFFFFFF, sizeof(uint) * MAX_PSYC_PAGES);
-  proc->next_to_swap = 0;
+  //NOTE: Maybe move all this down?
+  cprintf("[E] Exec. Pid is now %d\n", proc->pid);
+  memset(proc->swap_page_numbers, 0xFFFFFFFF, sizeof(int) * MAX_SWAP_PAGES);
+  memset(proc->swap_stored_va, 0xFFFFFFFF, sizeof(int) * MAX_SWAP_PAGES);
+  memset(proc->ram_pages, 0xFFFFFFFF, sizeof(int) * MAX_RAM_PAGES);
+
+//   memset(proc->pagefile_addr, 0xffffffff, sizeof(int) * MAX_PSYC_PAGES);
+//   memset(proc->memoryPages, 0xffffffff, sizeof(int) * MAX_PSYC_PAGES);
+  memset(proc->NfuPageAges, 0, sizeof(int) * MAX_RAM_PAGES);
+  memset(proc->fifoTimestamps, 0xFFFFFFFF, sizeof(uint) * MAX_RAM_PAGES);
+//   proc->next_to_swap = 0;
 
   proc->pagesInMemory = 0;
-  proc->pagesInSwapFile = 0;
-
+//   proc->pagesInSwapFile = 0;
+  proc->pagesInSwap = 0;
   proc->faultCount = 0;
   proc->swapCount = 0;
 

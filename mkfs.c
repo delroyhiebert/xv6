@@ -124,6 +124,8 @@ main(int argc, char *argv[])
   for(i = sb.swapstart; i < sb.swapstart+sb.swapblocks; i++)
     wsect(i, swapPattern);
 
+  //Might need to set up a root inode on the swap space.
+
   //Write superblock to image
   memset(buf, 0, sizeof(buf));
   memmove(buf, &sb, sizeof(sb));

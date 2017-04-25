@@ -73,7 +73,7 @@ QEMU = $(shell if which qemu > /dev/null; \
 endif
 
 ifndef SELECTION
-SELECTION := NFU
+SELECTION := FIFO
 endif
 
 CC = $(TOOLPREFIX)gcc

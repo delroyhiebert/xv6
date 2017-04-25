@@ -10,6 +10,14 @@ struct sleeplock;
 struct stat;
 struct superblock;
 
+void initswap(void);
+uint * walkpgdir(pde_t*, const void*, int);
+int removeProcFromSwap(void);
+uint evict(pde_t*);
+uint admit(uint);
+int trackMemPage(uint);
+uint getFifoPage(void);
+
 // bio.c
 void            binit(void);
 struct buf*     bread(uint, uint);
@@ -34,7 +42,7 @@ int             fileread(struct file*, char*, int n);
 int             filestat(struct file*, struct stat*);
 int             filewrite(struct file*, char*, int n);
 void            setSwapFileOffset(struct file*, uint);
-int             readSwapFileAtOffset(struct file*, char*, int, int); 
+int             readSwapFileAtOffset(struct file*, char*, int, int);
 int             writeSwapFileAtOffset(struct file*, char*, int, int);
 
 // fs.c
@@ -191,7 +199,7 @@ int             copyout(pde_t*, uint, void*, uint);
 void            clearpteu(pde_t *pgdir, char *uva);
 int             swapPages(uint);
 int             mapSwapPages(pde_t*, void*, uint, int);
-int             updateNfuAges(pde_t*,uint*,uint*);
+int             updateNfuAges(pde_t*,int*,uint*);
 
 // number of elements in fixed-size array
 #define NELEM(x) (sizeof(x)/sizeof((x)[0]))
