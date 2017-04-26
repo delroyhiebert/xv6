@@ -1,0 +1,26 @@
+COMP 4430
+Tyler Gauvreau
+Delroy Hiebert
+
+Files modified:
+Makefile
+defs.h
+exec.c
+fs.c
+main.c
+mkfs.c
+myMemTest.c
+proc.c
+proc.h
+trap.c
+vm.c
+
+So the idea here is that we modified the superblock for fs.img to support additional sections on disk.
+From there we attempted to implement an admit() and evict() function that would write it's own blocks to disk.
+The reasoning behind this is that the existing file manipulation functions were built to read and write only to the original file system, not any arbitrary space on disk.
+
+//Outdated:
+At the moment, when NFU is chosen, the disk reads and writes seem to be failing silently, and we are not sure why.
+As for the swapping logic, it seems that storage of virtual page addresses is failing.
+As for FIFO, disk writes succeed, but reads hang the process.
+Our trap implementation also does nothing but swap when it pagefaults. This needs to get modified to handle both soft and hard pagefaults.
