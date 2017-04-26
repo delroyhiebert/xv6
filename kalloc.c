@@ -61,8 +61,15 @@ kfree(char *v)
 {
   struct run *r;
 
+  if(v < end){
+	cprintf("[X] kfree: got passed an address lower then end (%p).\n", end);
+  }
+
   if((uint)v % PGSIZE || v < end || V2P(v) >= PHYSTOP)
+  {
+	cprintf("[X] kfree: got passed an address of %p.\n", v);
     panic("kfree");
+  }
 
   // Fill with junk to catch dangling refs.
   memset(v, 1, PGSIZE);

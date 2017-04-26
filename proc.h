@@ -78,10 +78,10 @@ struct proc {
   struct inode *cwd;           // Current directory
   char name[16];               // Process name (debugging)
 
-  int swap_page_numbers[MAX_SWAP_PAGES]; //Associative with swap_stored_va
-  int swap_stored_va[MAX_SWAP_PAGES]; //Associative with swap_page_numbers
-  int ram_pages[MAX_RAM_PAGES];
-  int pagesInSwap;
+  uint swap_page_numbers[MAX_SWAP_PAGES]; //Associative with swap_stored_va
+  uint swap_stored_va[MAX_SWAP_PAGES]; //Associative with swap_page_numbers
+  uint ram_pages[MAX_RAM_PAGES];
+  uint pagesInSwap;
 
 //   struct file *pagefile; //remove
 //   uint pagefile_addr[MAX_PSYC_PAGES]; //remove

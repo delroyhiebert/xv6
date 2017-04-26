@@ -21,7 +21,7 @@ exec(char *path, char **argv)
   begin_op();
 
   //NOTE: Maybe move all this down?
-  cprintf("[E] Exec. Pid is now %d\n", proc->pid);
+  cprintf("[E] Exec. Pid is %d\n", proc->pid);
   memset(proc->swap_page_numbers, 0xFFFFFFFF, sizeof(int) * MAX_SWAP_PAGES);
   memset(proc->swap_stored_va, 0xFFFFFFFF, sizeof(int) * MAX_SWAP_PAGES);
   memset(proc->ram_pages, 0xFFFFFFFF, sizeof(int) * MAX_RAM_PAGES);

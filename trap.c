@@ -82,16 +82,22 @@ trap(struct trapframe *tf)
     lapiceoi();
     break;
   case T_PGFLT:
-//     swapPages(rcr2());
+	if(proc->pid <= 2){
+	  break;
+	}
 
-	//Maybe we for sure don't need to swap? Difference between soft and hard pagefault?
+	//Differ between soft and hard pagefaults.
+
 	if(evict(proc->pgdir) < 0)
 	{
-		cprintf("[X] trap: failed to page.\n");
+		cprintf("[X] trap: failed to evict page.\n");
 	}
 	else
 	{
-		admit(rcr2());
+		if(admit(rcr2()))
+		{
+			cprintf("[X] trap: failed to admit page.\n");
+		}
 	}
 
     proc->faultCount++;

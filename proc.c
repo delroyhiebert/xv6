@@ -171,7 +171,7 @@ fork(void)
   }
 
   if ((proc != 0) && (proc->pid > 2) && (np->pid > 2)) {
-	cprintf("[F] Forking.\n");
+	cprintf("[F] Forking. Pid is now\n", np->pid);
 //     np->pagesInSwapFile = proc->pagesInSwapFile;
     np->pagesInMemory = proc->pagesInMemory;
 	np->pagesInSwap = proc->pagesInSwap;

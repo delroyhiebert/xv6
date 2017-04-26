@@ -143,12 +143,8 @@ int writePage(uint dev, uint va_page)
 	}
 	proc->swap_page_numbers[i] = pageNumber;
 
-// 	cprintf("[L] Tracking array marking is done.\n");
-
 	//pageOffset is the actual location of the page in question
 	pageOffset = pageNumber*(BSIZE/PGSIZE);
-
-// 	cprintf("[L] Calculated swap offset.\n");
 
 	release(&swaptable.swaplock);
 // 	cprintf("[L] writePage has released a lock. Number of active locks is: %d\n", cpu->ncli);
@@ -168,11 +164,12 @@ int writePage(uint dev, uint va_page)
 	}
 	end_op();
 // 	cprintf("[O] Operation complete. Page has been written.\n\n");
-	cprintf("[S] Page written.\n");
 
 	proc->pagesInMemory--;
 	proc->pagesInSwap++;
-	proc->ram_pages[i] = 0xFFFFFFFF;
+// 	proc->ram_pages[i] = 0xFFFFFFFF;
+
+// 	cprintf("[S] Page written to swap.       %d pages in memory, %d pages in swap.\n", proc->pagesInMemory, proc->pagesInSwap);
 
 // 	proc->swapCount++; //not really sure if this is the right place for this.
 	cprintf("[M] Pid %d: %d pages in memory, %d pages in swap.\n", proc->pid, proc->pagesInMemory, proc->pagesInSwap);
@@ -204,6 +201,8 @@ int trackMemPage(uint va)
 {
 	int i;
 
+	//Find first open slot
+	acquire(&swaptable.swaplock);
 	for(i = 0; i < MAX_RAM_PAGES; i++)
 	{
 		if (proc->ram_pages[i] == 0xFFFFFFFF)
@@ -211,18 +210,23 @@ int trackMemPage(uint va)
 			break;
 		}
 	}
+	release(&swaptable.swaplock);
 	if (i == MAX_RAM_PAGES)
 	{
 		panic("trackMemPage: memory full trying to add to ram_pages.\n");
 	}
 
-	//FIFO timestamps
+	//write stamps at chosen slot
 	acquire(&tickslock);
 	proc->fifoTimestamps[i] = ticks;
 	release(&tickslock);
 
+	proc->pagesInMemory++;
+
 	proc->ram_pages[i] = va;
 	proc->NfuPageAges[i] = (1 << 31);
+
+// 	cprintf("[V] Tracking va %p. Timestamp is %d.\n", va, proc->fifoTimestamps[i]);
 
 	return i;
 }
@@ -236,10 +240,25 @@ uint admit(uint va)
 	int pageNumber;
 	struct buf* block;
 
-	acquire(&swaptable.swaplock);
-	cprintf("\n[L] admit has acquired a lock. Number of active locks is: %d\n", cpu->ncli);
+	if(va == 0)
+	{
+		cprintf("[X] admit: passed a va of zero.\n");
+		return -1;
+	}
+	else
+	{
+		cprintf("[V] admit: Attempting to admit va address of %p.\n", va);
+	}
+	va = PGROUNDDOWN(va);
+	if(va <= 0)
+	{
+		cprintf("[X] admit: PGROUNDOWN has resulted in addressing page %d.\n", va);
+		return -1;
+	}
 
-	va = PGROUNDDOWN((uint)va);
+	acquire(&swaptable.swaplock);
+	cprintf("[L] admit has acquired a lock. Number of active locks is: %d\n", cpu->ncli);
+
 	for(i = 0; i < MAX_SWAP_PAGES; i++)
 	{
 		if(proc->swap_stored_va[i] == va) //if our table says it's in swap
@@ -268,19 +287,21 @@ uint admit(uint va)
 	pageOffset = pageNumber * (PGSIZE/BSIZE);
 
 	release(&swaptable.swaplock);
-	cprintf("\n[L] admit has released a lock. Number of active locks is: %d\n", cpu->ncli);
+	cprintf("[L] admit has released a lock. Number of active locks is: %d\n", cpu->ncli);
 
 	begin_op();
 	cprintf("[O] Begin read operation...\n");
 	for(j = 0; j < PGSIZE/BSIZE; j++)
 	{
-// 		cprintf("[O] Attempting to read page %d of %d.\n", j+1, PGSIZE/BSIZE);
+		cprintf("[O] Attempting to read page %d of %d.\n", j+1, PGSIZE/BSIZE);
 		block = bread(ROOTDEV, sb.swapstart+pageOffset+j); //Get the block we need.
-		memmove((char*)va+(BSIZE*j), block->data, BSIZE); //Here is the magic. Copy one page from buffer/block struct to memory.
+		cprintf("[O] Obtained block pointer. Moving to va %p.\n", va);
+		memmove((uchar*)(va+(BSIZE*j)), block->data, sizeof(block->data)); //Here is the magic. Copy one page from buffer/block struct to memory.
+		cprintf("[O] Memory block modified.\n");
 		//bwrite(block); should not need this...
 		swaptable.present[pageNumber] = 0; //Just toombstone the table entry instead of making 4 writes to disk.
 		brelse(block);
-// 		cprintf("[O] Read of page %d of %d complete.\n", j+1, PGSIZE/BSIZE);
+		cprintf("[O] Read of page %d of %d complete.\n", j+1, PGSIZE/BSIZE);
 	}
 	end_op();
 	cprintf("[O] Operation complete. Page has been read.\n");
@@ -290,12 +311,12 @@ uint admit(uint va)
 	*pte &= (~PTE_PG);
 	*pte |= PTE_P;
 	proc->pagesInSwap--;
-	proc->pagesInMemory++;
+// 	proc->pagesInMemory++;
 	proc->swap_page_numbers[i] = 0xFFFFFFFF;
-	proc->swap_stored_va[i] = 0xFFFFFFFF;
-	cprintf("[M] Pid %d: %d pages in memory, %d pages in swap.\n", proc->pid, proc->pagesInMemory, proc->pagesInSwap);
+// 	proc->swap_stored_va[i] = 0xFFFFFFFF;
+	cprintf("[M] Page has been read. %d pages in memory, %d pages in swap.\n", proc->pagesInMemory, proc->pagesInSwap);
 
-	trackMemPage(va);
+	trackMemPage(va); //VA has been rounded already.
 
 	return 0;
 }
@@ -317,31 +338,41 @@ uint evict(pde_t* pageDirectory)
 	{
 		return -1;
 	}
+	if(proc->pagesInSwap > MAX_SWAP_PAGES)
+	{
+		cprintf("[X] evict: swap is full for this process.\n");
+		return -1;
+	}
 
+	acquire(&swaptable.swaplock);
 	#ifdef FIFO
 	va_page = getFifoPage();
 	#endif
 	#ifdef NFU
 	va_page = getOldNfuPage();
 	#endif
+	release(&swaptable.swaplock);
 
-// 	cprintf("[M] Pid %d: %d pages in memory, %d pages in swap.\n", proc->pid, proc->pagesInMemory, proc->pagesInSwap);
-	if(writePage(ROOTDEV, va_page) < 0) //Just tossing ROOTDEV in here as opposed to a (uint dev) is sloppy.
+	if(va_page == 0xFFFFFFFF)
 	{
-		cprintf("[X] evict: failure during write to swap.\n");
+		cprintf("[X] evict: Attempted to evict va_page 0xFFFFFFFF.\n");
 		return -1;
 	}
 
-// 	proc->swapCount++;
-// 	proc->pagesInSwap++;
+	if(writePage(ROOTDEV, va_page) < 0)
+	{
+		panic("evict: failure during write to swap.\n");
+	}
 
-	if ((pte = walkpgdir(pageDirectory,(char *)va_page,0)) == 0) //remove the (char*)?
+// 	cprintf("[V] evict: calling walkpgdir on va_page %p.\n", va_page);
+	if ((pte = walkpgdir(pageDirectory,(uint*)va_page,0)) == 0) //remove the (char*)?
 	{
 		panic("evict: walkpgdir failure.");
 	}
 
 	*pte &= ~PTE_P; //Remove present bit
     *pte |= PTE_PG; //Indicate this page has been paged out, not removed.
+// 	cprintf("[K] evict: passing an address of %p to kfree().\n", P2V(PTE_ADDR(*pte)));
     kfree(P2V(PTE_ADDR(*pte))); //Free the page from main memory.
 
 	return 0;

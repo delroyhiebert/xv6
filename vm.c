@@ -258,11 +258,14 @@ allocuvm(pde_t *pgdir, uint oldsz, uint newsz)
     }
     if(proc->pid > 2){
       #if defined (NFU) || (FIFO)
-	  trackMemPage(PGROUNDDOWN(a));
+// 	  cprintf("[V] allocuvm: passing va of %p to trackMemPage().\n", PGROUNDDOWN((uint)mem)); //Passes va of 0 right after the exec.
+	  if((uint)mem < 0x8011c688){
+		cprintf("[X] allocuvm: detected bogus va %p under 8011c688.\n", (uint)mem);
+	  }
+	  trackMemPage(PGROUNDDOWN((uint)mem));
       #endif
-      proc->pagesInMemory++;
-	  cprintf("\n[M] Allocated a page of memory.\n");
-	  cprintf("[M] Pid %d: %d pages in memory, %d pages in swap.\n", proc->pid, proc->pagesInMemory, proc->pagesInSwap);
+//       proc->pagesInMemory++;
+// 	  cprintf("[M] Allocated a page of memory. %d pages in memory, %d pages in swap.\n", proc->pagesInMemory, proc->pagesInSwap);
 	}
   }
   return newsz;
@@ -420,26 +423,27 @@ uint getFifoPage()
 	//Find memoryPage with youngest age. Remember it's offset.
 	for(i = 0; i < MAX_RAM_PAGES; i++)
 	{
-		//0xFFFFFFFF means unused.
-		if((proc->fifoTimestamps[i] != 0xFFFFFFFF) && (proc->fifoTimestamps[i] < youngest))
+		if(proc->fifoTimestamps[i] < youngest)
 		{
 			youngest = proc->fifoTimestamps[i];
 			target = i;
 		}
 	}
 
-	if(target < 0)
+	if(target == -1)
 	{
 		//Probably all timestamps were 0xFFFFFFFF
 		panic("getFifoPages: no target was selected. seems like no pages in ram_pages[]?");
 	}
 	if(proc->ram_pages[target] == 0xFFFFFFFF)
 	{
-		//panic("getFifoPages: chose a va of 0xFFFFFFFF");
+// 		cprintf("[X] getFifoPages: chose a va of 0xFFFFFFFF.\n");
+		panic("getFifoPages: chose a va of 0xFFFFFFFF.\n");
 	}
 
 	va = proc->ram_pages[target];
-	//proc->ram_pages[target] = 0xFFFFFFFF;
+	proc->ram_pages[target] = 0xFFFFFFFF;
+	proc->fifoTimestamps[target] = 0xFFFFFFFF;
 	//proc->swap_stored_va[target] = 0xFFFFFFFF;
 
 	return va;
