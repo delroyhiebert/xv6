@@ -83,16 +83,10 @@ struct proc {
   uint ram_pages[MAX_RAM_PAGES];
   uint pagesInSwap;
 
-//   struct file *pagefile; //remove
-//   uint pagefile_addr[MAX_PSYC_PAGES]; //remove
-//   uint memoryPages[MAX_PSYC_PAGES]; //remove
   uint NfuPageAges[MAX_RAM_PAGES];
-//   int next_to_swap; //remove
   uint fifoTimestamps[MAX_RAM_PAGES];
 
-//   char swapFileName[20]; //remove
   int pagesInMemory;
-//   int pagesInSwapFile;
   int faultCount;
   int swapCount;
 };

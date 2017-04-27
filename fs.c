@@ -105,7 +105,6 @@ int writePage(uint dev, uint va_page)
 
 	//Select open page number for processing.
 	acquire(&swaptable.swaplock);
-// 	cprintf("\n[L] writePage has acquired a lock. Number of active locks is: %d\n", cpu->ncli);
 	for(pageNumber = 0; pageNumber < SPA; pageNumber++)
 	{
 		if(!swaptable.present[pageNumber]) //If the swap table indicates that this page hasn't been allocated
@@ -210,8 +209,6 @@ int trackMemPage(uint va)
 
 	proc->ram_pages[i] = va;
 	proc->NfuPageAges[i] = (1 << 31);
-
-// 	cprintf("[V] Tracking va %p. Timestamp is %d.\n", va, proc->fifoTimestamps[i]);
 
 	return i;
 }

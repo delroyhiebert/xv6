@@ -261,7 +261,7 @@ allocuvm(pde_t *pgdir, uint oldsz, uint newsz)
 	  if((uint)mem < 0x8011c688){
 		  cprintf("[X] allocuvm: detected bogus va %p under 8011c688.\n", (uint)mem);
 	  }
-	  trackMemPage(PGROUNDDOWN((uint)mem)); //Probably don't need the PGROUNDDOWN?
+	  trackMemPage(PGROUNDDOWN((uint)mem));
       #endif
 	  }
   }

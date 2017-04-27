@@ -81,16 +81,11 @@ found:
 	memset(p->swap_stored_va, 0xFFFFFFFF, sizeof(int)*MAX_SWAP_PAGES);
 	memset(p->ram_pages, 0xFFFFFFFF, sizeof(int)*MAX_RAM_PAGES);
 
-//     p->pagefile = createSwapFile(p->swapFileName);
-//     memset(p->pagefile_addr, 0xFFFFFFFF, sizeof(int) * MAX_PSYC_PAGES);
-//     memset(p->memoryPages, 0xFFFFFFFF, sizeof(int) * MAX_PSYC_PAGES);
     memset(p->NfuPageAges, 0, sizeof(int) * MAX_PSYC_PAGES);
 	memset(p->fifoTimestamps,   0xFFFFFFFF, sizeof(uint) * MAX_PSYC_PAGES);
-//     p->next_to_swap = 0;
 
     p->pagesInMemory = 0;
-//     p->pagesInSwapFile = 0;
-	p->pagesInSwap = 0;
+  	p->pagesInSwap = 0;
     p->faultCount = 0;
     p->swapCount = 0;
   }
@@ -172,34 +167,18 @@ fork(void)
 
   if ((proc != 0) && (proc->pid > 2) && (np->pid > 2)) {
 	cprintf("[F] Forking. Pid is now\n", np->pid);
-//     np->pagesInSwapFile = proc->pagesInSwapFile;
     np->pagesInMemory = proc->pagesInMemory;
 	np->pagesInSwap = proc->pagesInSwap;
 
 	memmove(np->swap_page_numbers, proc->swap_page_numbers, sizeof(int)*MAX_SWAP_PAGES);
 	memmove(np->swap_stored_va, proc->swap_stored_va, sizeof(int)*MAX_SWAP_PAGES);
 	memmove(np->ram_pages, proc->ram_pages, sizeof(int)*MAX_RAM_PAGES);
+  memmove(np->NfuPageAges, proc->NfuPageAges, sizeof(uint) * MAX_RAM_PAGES);
+  memmove(np->fifoTimestamps, proc->fifoTimestamps, sizeof(uint) * MAX_RAM_PAGES);
 
-//     memmove(np->pagefile_addr,proc->pagefile_addr, sizeof(uint) * MAX_PSYC_PAGES);
-//     memmove(np->memoryPages, proc->memoryPages, sizeof(uint) * MAX_PSYC_PAGES);
-    memmove(np->NfuPageAges, proc->NfuPageAges, sizeof(uint) * MAX_RAM_PAGES);
-    memmove(np->fifoTimestamps, proc->fifoTimestamps, sizeof(uint) * MAX_RAM_PAGES);
-
-//     np->next_to_swap = proc->next_to_swap;
     np->faultCount = 0;
     np->swapCount = 0;
 
-	//TODO: Copy the swap pages. This needs to get re-written.
-//     if ((proc->pagefile != 0) && (np->pagefile != 0)) {
-//         char pagebuffer[1024];
-//
-//       for(i = 0; i < MAX_PSYC_PAGES; i++) {
-//           if (readSwapFileAtOffset(proc->pagefile, pagebuffer, 1024, i*1024) < 0)
-//               panic("fork: unable to read from parent swap file\n");
-//           if (writeSwapFileAtOffset(np->pagefile,pagebuffer, 1024, i*1024) < 0)
-//               panic("fork: unable to write to child swap file\n");
-//       }
-//     }
   }
 
   // Copy process state from p.
@@ -383,7 +362,6 @@ sched(void)
     panic("sched ptable.lock");
   if(cpu->ncli != 1)
   {
-	cprintf("\nsched: number of active locks: %d. Should only have 1.\n", cpu->ncli);
     panic("sched locks");
   }
   if(proc->state == RUNNING)
@@ -569,25 +547,3 @@ uint getOldNfuPage()
 
 	return va;
 }
-
-//Remove this
-// int addNewPage(uint va)
-// {
-//   int i;
-//
-//   for(i = 0; i < MAX_PSYC_PAGES; i++) {
-//     if (proc->memoryPages[i] == 0xffffffff)
-//       break;
-//   }
-//
-//   if (i == MAX_PSYC_PAGES)
-//     panic("memory full trying to add to memoryPages\n");
-//
-//   acquire(&tickslock);
-//   proc->fifoTimestamps[i] = ticks;
-//   release(&tickslock);
-//
-//   proc->memoryPages[i] = va;
-//   proc->NfuPageAges[i] = (1 << 31);
-//   return i;
-// }
