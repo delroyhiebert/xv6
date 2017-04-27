@@ -118,11 +118,8 @@ int writePage(uint dev, uint va_page)
 	{
 		cprintf("[X] writePage: global swap space is full.\n");
 		release(&swaptable.swaplock);
-		cprintf("\n[L] writePage has released a lock. Number of active locks is: %d.\n", cpu->ncli);
 		return -1;
 	}
-
-// 	cprintf("[L] Swaptable mark is done.\n");
 
 	//Find an open slot in tracking arrays to store the evicted va and page number it's stored in.
 	for(i = 0; i < MAX_SWAP_PAGES; i++)
@@ -138,7 +135,6 @@ int writePage(uint dev, uint va_page)
 		cprintf("[X] writePage: swap file quota exceeded for this process.\n");
 		swaptable.present[pageNumber] = 0; //Mark as unused
 		release(&swaptable.swaplock);
-		cprintf("\n[L] writePage has released a lock. Number of active locks is: %d\n", cpu->ncli);
 		return -1;
 	}
 	proc->swap_page_numbers[i] = pageNumber;
@@ -147,29 +143,22 @@ int writePage(uint dev, uint va_page)
 	pageOffset = pageNumber*(BSIZE/PGSIZE);
 
 	release(&swaptable.swaplock);
-// 	cprintf("[L] writePage has released a lock. Number of active locks is: %d\n", cpu->ncli);
 
 	//Should execute 4 times: 4 blocks per page.
 	begin_op();
-// 	cprintf("\n[O] Begin write operation...\n");
 
 	for(j = 0; j < PGSIZE/BSIZE; j++)
 	{
-// 		cprintf("[O] Attempting to write page %d of %d.\n", j+1, PGSIZE/BSIZE);
 		block = bread(dev, sb.swapstart+pageOffset+j);
 		memmove(block->data, (char*)va_page+(BSIZE*j), BSIZE); //Here is the magic. Copy one page from memory to buffer/block struct.
 		bwrite(block);
 		brelse(block);
-// 		cprintf("[O] Write of page %d of %d complete.\n", j+1, PGSIZE/BSIZE);
 	}
 	end_op();
-// 	cprintf("[O] Operation complete. Page has been written.\n\n");
 
 	proc->pagesInMemory--;
 	proc->pagesInSwap++;
-// 	proc->ram_pages[i] = 0xFFFFFFFF;
 
-// 	proc->swapCount++; //not really sure if this is the right place for this.
 	cprintf("[W] Pid %d: %d pages in memory, %d pages in swap.\n", proc->pid, proc->pagesInMemory, proc->pagesInSwap);
 
 	return pageNumber;
@@ -180,7 +169,6 @@ int removeProcFromSwap(void)
 	int i;
 
 	acquire(&swaptable.swaplock);
-	cprintf("\n[L] removeProcFromSwap has acquired a lock. Number of active locks is: %d\n", cpu->ncli);
 	for(i = 0; i < MAX_SWAP_PAGES; i++)
 	{
 		if(proc->swap_page_numbers[i] != 0xFFFFFFFF)
@@ -189,7 +177,6 @@ int removeProcFromSwap(void)
 		}
 	}
 	release(&swaptable.swaplock);
-	cprintf("\n[L] removeProcFromSwap has released a lock. Number of active locks is: %d\n", cpu->ncli);
 
 	return 0;
 }
@@ -255,7 +242,6 @@ int admit(uint va)
 	}
 
 	acquire(&swaptable.swaplock);
-	cprintf("[L] admit has acquired a lock. Number of active locks is: %d\n", cpu->ncli);
 
 	for(i = 0; i < MAX_SWAP_PAGES; i++)
 	{
@@ -285,7 +271,6 @@ int admit(uint va)
 	pageOffset = pageNumber * (PGSIZE/BSIZE);
 
 	release(&swaptable.swaplock);
-	cprintf("[L] admit has released a lock. Number of active locks is: %d\n", cpu->ncli);
 
 	begin_op();
 	cprintf("[O] Begin read operation...\n");
@@ -296,7 +281,6 @@ int admit(uint va)
 		cprintf("[O] Obtained block pointer. Moving to va %p.\n", va);
 		memmove((uchar*)(va+(BSIZE*j)), block->data, sizeof(block->data)); //Here is the magic. Copy one page from buffer/block struct to memory.
 		cprintf("[O] Memory block modified.\n");
-		//bwrite(block); should not need this...
 		swaptable.present[pageNumber] = 0; //Just toombstone the table entry instead of making 4 writes to disk.
 		brelse(block);
 		cprintf("[O] Read of page %d of %d complete.\n", j+1, PGSIZE/BSIZE);
@@ -309,9 +293,7 @@ int admit(uint va)
 	*pte &= (~PTE_PG);
 	*pte |= PTE_P;
 	proc->pagesInSwap--;
-// 	proc->pagesInMemory++;
 	proc->swap_page_numbers[i] = 0xFFFFFFFF;
-// 	proc->swap_stored_va[i] = 0xFFFFFFFF;
 	cprintf("[M] Page has been read. %d pages in memory, %d pages in swap.\n", proc->pagesInMemory, proc->pagesInSwap);
 
 	trackMemPage(va); //VA has been rounded already.
@@ -365,8 +347,7 @@ uint evict(pde_t* pageDirectory)
 
 	*pte &= ~PTE_P; //Remove present bit
 	*pte |= PTE_PG; //Indicate this page has been paged out, not removed.
-	//addkernbase(*pte & ~0xFFF)
-	kfree(P2V(PTE_ADDR(*pte))); //Free the page from main memory. This is wrong?
+	kfree(P2V(PTE_ADDR(*pte)));
 
 	return 0;
 }

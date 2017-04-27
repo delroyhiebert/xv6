@@ -27,30 +27,6 @@ int main (int argc, char* argv[])
 	}
 	printf(1, "\n");
 
-	//Test fork inheritance
-// 	if(!fork())
-// 	{
-// 		printf(1, "Child reading pages: ");
-// 		for(i = 0; i < n; i++)
-// 		{
-// 			printf(1, "%d ", i);
-// 			//check each entire page for valid contents
-// 			for(j = 0; j < 4096; j++)
-// 			{
-// 				pointer = heapvar[i];
-// 				pointer = pointer + j;
-// 				if (*pointer != (char)i)
-// 				{
-// 					printf(1, "Heap has been corrupted. Looking for %d, found %d. Terminating.\n", i, *pointer);
-// 					exit();
-// 				}
-// 			}
-// 		}
-// 		printf(1, "\n");
-// 		exit();
-// 	}
-// 	wait();
-
 	//Read the content of those pages back in.
 	printf(1, "[T] Parent reading pages: ");
 	for(i = 0; i < n; i++)

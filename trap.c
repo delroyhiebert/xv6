@@ -86,50 +86,34 @@ trap(struct trapframe *tf)
     lapiceoi();
     break;
   case T_PGFLT:
-	if(proc->pid <= 2){
+	if(proc->pid <= 2)
 	  break;
-	}
-// 	addr = rcr2();
-//     vaddr = &proc->pgdir[PDX(addr)];
-//
-//     if (((int)(*vaddr) & PTE_P) != 0) { // if page table isn't present at page directory -> hard page fault
-//       if (((uint*)PTE_ADDR(P2V(*vaddr)))[PTX(addr)] & PTE_PG) { // if the page is in the process's swap file
-//         swapPages(PTE_ADDR(addr));
-//         ++proc->totalPageFaultCount;
-//         return;
-//       }
-//     }
 
-	pte_t* pte = walkpgdir(proc->pgdir, (char*)rcr2(), 0);
-	if(pte == 0)
-	{
-		panic("\n[X] trap: could not walkpgdir.\n");
-	}
+  	pte_t* pte = walkpgdir(proc->pgdir, (char*)rcr2(), 0);
+  	if(pte == 0)
+  	{
+  		panic("\n[X] trap: could not walkpgdir.\n");
+  	}
 
-	if(*pte & PTE_PG) //If the page we want has PTE_PG set.
-	{
-		cprintf("[?] Point 1.\n");
-		if(evict(proc->pgdir) != 0)
-		{
-			cprintf("[X] trap: failed to evict page.\n");
-		}
-		cprintf("[?] Point. 2\n");
-		if(admit(P2V_WO(rcr2())) < 0)
-		{
-			cprintf("[X] trap: failed to admit page.\n");
-		}
-		cprintf("[?] Point. 3\n");
-	}
-	else if(*pte & PTE_P)
-	{
-		cprintf("[T] trap: hard page fault.\n");
-		//Allocate this thing a new page?
-	}
-	else
-	{
-		panic("\n[X] trap: T_PGFLT raised but no PTE_P or PTE_PG flag was set.\n");
-	}
-
+  	if(*pte & PTE_PG) //If the page we want has PTE_PG set.
+  	{
+  		if(evict(proc->pgdir) != 0)
+  		{
+  			cprintf("[X] trap: failed to evict page.\n");
+  		}
+  		if(admit(P2V_WO(rcr2())) < 0)
+  		{
+  			cprintf("[X] trap: failed to admit page.\n");
+  		}
+  	}
+  	else if(*pte & PTE_P)
+  	{
+  		cprintf("[T] trap: hard page fault.\n");
+  	}
+  	else
+  	{
+  		panic("\n[X] trap: T_PGFLT raised but no PTE_P or PTE_PG flag was set.\n");
+  	}
     proc->faultCount++;
     break;
 
