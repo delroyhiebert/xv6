@@ -169,10 +169,8 @@ int writePage(uint dev, uint va_page)
 	proc->pagesInSwap++;
 // 	proc->ram_pages[i] = 0xFFFFFFFF;
 
-// 	cprintf("[S] Page written to swap.       %d pages in memory, %d pages in swap.\n", proc->pagesInMemory, proc->pagesInSwap);
-
 // 	proc->swapCount++; //not really sure if this is the right place for this.
-	cprintf("[M] Pid %d: %d pages in memory, %d pages in swap.\n", proc->pid, proc->pagesInMemory, proc->pagesInSwap);
+	cprintf("[W] Pid %d: %d pages in memory, %d pages in swap.\n", proc->pid, proc->pagesInMemory, proc->pagesInSwap);
 
 	return pageNumber;
 }
@@ -231,7 +229,7 @@ int trackMemPage(uint va)
 	return i;
 }
 
-uint admit(uint va)
+int admit(uint va)
 {
 	pte_t *pte;
 	int i, j;
@@ -340,8 +338,7 @@ uint evict(pde_t* pageDirectory)
 	}
 	if(proc->pagesInSwap > MAX_SWAP_PAGES)
 	{
-		cprintf("[X] evict: swap is full for this process.\n");
-		return -1;
+		panic("[X] evict: swap is full for this process.\n");
 	}
 
 	acquire(&swaptable.swaplock);
@@ -355,25 +352,21 @@ uint evict(pde_t* pageDirectory)
 
 	if(va_page == 0xFFFFFFFF)
 	{
-		cprintf("[X] evict: Attempted to evict va_page 0xFFFFFFFF.\n");
-		return -1;
+		panic("[X] evict: Attempted to evict va_page 0xFFFFFFFF.\n");
 	}
-
 	if(writePage(ROOTDEV, va_page) < 0)
 	{
 		panic("evict: failure during write to swap.\n");
 	}
-
-// 	cprintf("[V] evict: calling walkpgdir on va_page %p.\n", va_page);
-	if ((pte = walkpgdir(pageDirectory,(uint*)va_page,0)) == 0) //remove the (char*)?
+	if ((pte = walkpgdir(pageDirectory,(char*)va_page,0)) == 0)
 	{
 		panic("evict: walkpgdir failure.");
 	}
 
 	*pte &= ~PTE_P; //Remove present bit
-    *pte |= PTE_PG; //Indicate this page has been paged out, not removed.
-// 	cprintf("[K] evict: passing an address of %p to kfree().\n", P2V(PTE_ADDR(*pte)));
-    kfree(P2V(PTE_ADDR(*pte))); //Free the page from main memory.
+	*pte |= PTE_PG; //Indicate this page has been paged out, not removed.
+	//addkernbase(*pte & ~0xFFF)
+	kfree(P2V(PTE_ADDR(*pte))); //Free the page from main memory. This is wrong?
 
 	return 0;
 }

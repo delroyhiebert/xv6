@@ -262,10 +262,10 @@ allocuvm(pde_t *pgdir, uint oldsz, uint newsz)
 	  if((uint)mem < 0x8011c688){
 		cprintf("[X] allocuvm: detected bogus va %p under 8011c688.\n", (uint)mem);
 	  }
-	  trackMemPage(PGROUNDDOWN((uint)mem));
+	  trackMemPage(PGROUNDDOWN((uint)mem)); //Probably don't need the PGROUNDDOWN?
       #endif
 //       proc->pagesInMemory++;
-// 	  cprintf("[M] Allocated a page of memory. %d pages in memory, %d pages in swap.\n", proc->pagesInMemory, proc->pagesInSwap);
+	  cprintf("[A] Pid %d: %d pages in memory, %d pages in swap.\n", proc->pid, proc->pagesInMemory, proc->pagesInSwap);
 	}
   }
   return newsz;

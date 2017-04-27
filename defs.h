@@ -14,7 +14,7 @@ void initswap(void);
 uint * walkpgdir(pde_t*, const void*, int);
 int removeProcFromSwap(void);
 uint evict(pde_t*);
-uint admit(uint);
+int admit(uint);
 int trackMemPage(uint);
 uint getFifoPage(void);
 

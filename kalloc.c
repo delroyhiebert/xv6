@@ -64,6 +64,9 @@ kfree(char *v)
   if(v < end){
 	cprintf("[X] kfree: got passed an address lower then end (%p).\n", end);
   }
+  if(v <= 0){
+	cprintf("[X] kfree: got passed a zero.\n");
+  }
 
   if((uint)v % PGSIZE || v < end || V2P(v) >= PHYSTOP)
   {
